@@ -28,7 +28,7 @@
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/YOUR_USERNAME/dota-ready-helper.git
+git clone https://github.com/Krealiss/dota-ready-helper.git
 cd dota-ready-helper
 ```
 
@@ -140,7 +140,7 @@ This tool is for educational purposes. Use at your own risk. The authors are not
 
 1. **Клонуйте репозиторій:**
 ```bash
-git clone https://github.com/YOUR_USERNAME/dota-ready-helper.git
+git clone https://github.com/Krealiss/dota-ready-helper.git
 cd dota-ready-helper
 ```
 
