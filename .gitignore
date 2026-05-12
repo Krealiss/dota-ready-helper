@@ -6,6 +6,18 @@ dota_ready_helper.py
 dota_ready_helper.spec
 *.exe
 
+# Build and installer files (local development only)
+build_installer.bat
+build_simple.bat
+installer.iss
+create_icon.py
+run_tests.bat
+test_run.bat
+test_setup.py
+setup_dialog.py
+splash_screen.py
+main_gui.py
+
 # Python
 __pycache__/
 *.py[cod]
