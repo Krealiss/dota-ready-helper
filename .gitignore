@@ -1,0 +1,77 @@
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Logs
+*.log
+logs/
+crashes/
+
+# Stats and temporary data
+stats/
+
+# Build artifacts
+*.exe
+installer/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific temporary files
+landing/
+ARCHITECTURE.md
+BUILD.md
+CHANGELOG.md
+CHECKLIST.md
+COMMERCIAL.md
+COMPARISON.md
+COMPLETE.md
+FINAL_STATUS.md
+FINAL_SUMMARY.md
+ICON_GUIDE.md
+INDEX.md
+INSTALLER_GUIDE.md
+LAUNCH_CHECKLIST.md
+PROGRESS.md
+PROJECT_COMPLETE.md
+QUICK_BUILD.md
+README_QUICK.md
+START_HERE.md
+STATS_UPDATE.md
+SUMMARY.md
