@@ -1,5 +1,11 @@
 # Dota Ready Helper
 
+[![GitHub release](https://img.shields.io/github/v/release/Krealiss/dota-ready-helper)](https://github.com/Krealiss/dota-ready-helper/releases)
+[![License](https://img.shields.io/github/license/Krealiss/dota-ready-helper)](LICENSE.txt)
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![GitHub stars](https://img.shields.io/github/stars/Krealiss/dota-ready-helper)](https://github.com/Krealiss/dota-ready-helper/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/Krealiss/dota-ready-helper)](https://github.com/Krealiss/dota-ready-helper/issues)
+
 🎮 Automatic match acceptance helper for Dota 2 with Telegram bot control
 
 [Українська версія](#ukrainian-version) | [English](#english-version)
