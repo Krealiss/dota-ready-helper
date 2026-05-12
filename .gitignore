@@ -1,6 +1,11 @@
 # Environment variables
 .env
 
+# Deprecated files with potential secrets
+dota_ready_helper.py
+dota_ready_helper.spec
+*.exe
+
 # Python
 __pycache__/
 *.py[cod]
