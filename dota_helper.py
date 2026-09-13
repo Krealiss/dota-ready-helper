@@ -6,11 +6,13 @@ from typing import Optional
 
 from logger import logger
 from config import (
-    IMG_SEARCHING, IMG_SEARCH_BTN, IMG_ACCEPT, IMG_STOP,
-    CONFIDENCE, SCAN_INTERVAL, MESSAGE_COOLDOWN, SEARCH_REGION
+    IMG_SEARCHING, IMG_SEARCH_BTN, IMG_ACCEPT_VARIANTS, IMG_STOP,
+    CONFIDENCE, SCAN_INTERVAL, MESSAGE_COOLDOWN, SEARCH_REGION,
+    ACCEPT_REGION_WIDTH, ACCEPT_REGION_HEIGHT, ACCEPT_COLOR_FALLBACK
 )
 from image_recognition import (
-    find_on_screen, click_center, double_click_center, get_center_region
+    find_on_screen, find_green_button, click_center, double_click_center,
+    get_center_region
 )
 from stats_tracker import Statistics
 from report_exporter import ReportExporter
@@ -39,7 +41,9 @@ class DotaHelper:
         self.pending_export = False
 
         # Регіон для пошуку кнопки "Прийняти" (центр екрана)
-        self.accept_region = get_center_region(800, 400)
+        self.accept_region = get_center_region(
+            ACCEPT_REGION_WIDTH, ACCEPT_REGION_HEIGHT
+        )
 
         # Статистика
         self.stats = Statistics()
@@ -106,6 +110,32 @@ class DotaHelper:
         self._set_state(State.IDLE)
         return True
 
+    def locate_accept_button(self):
+        """
+        Знайти кнопку "Прийняти" у будь-якому варіанті вікна прийняття.
+
+        Спочатку перебираються всі еталони assets/prinyat*.png, потім —
+        резервний пошук зеленої кнопки за кольором.
+
+        Returns:
+            Tuple (box, спосіб пошуку) або (None, None)
+        """
+        for variant in IMG_ACCEPT_VARIANTS:
+            box = find_on_screen(
+                variant,
+                confidence=CONFIDENCE["accept"],
+                region=self.accept_region
+            )
+            if box:
+                return box, variant.name
+
+        if ACCEPT_COLOR_FALLBACK:
+            box = find_green_button(self.accept_region)
+            if box:
+                return box, "пошук за кольором"
+
+        return None, None
+
     def check_accept_button(self) -> bool:
         """
         Перевірити наявність кнопки "Прийняти" та натиснути її.
@@ -113,14 +143,11 @@ class DotaHelper:
         Returns:
             True якщо кнопку знайдено
         """
-        accept = find_on_screen(
-            IMG_ACCEPT,
-            confidence=CONFIDENCE["accept"],
-            region=self.accept_region
-        )
+        accept, source = self.locate_accept_button()
 
         if accept:
             if self.state != State.READY:
+                logger.info(f"Кнопку 'Прийняти' знайдено ({source})")
                 self._set_state(State.READY)
                 self._debounced_message("✅ Гра знайдена! Натискаю 'Прийняти'...")
                 click_center(accept)

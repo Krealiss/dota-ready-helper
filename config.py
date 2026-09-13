@@ -22,6 +22,10 @@ IMG_SEARCH_BTN = ASSETS_DIR / "search_game.png"
 IMG_ACCEPT = ASSETS_DIR / "prinyat.png"
 IMG_STOP = ASSETS_DIR / "stop.png"
 
+# Усі варіанти кнопки "Прийняти" (prinyat.png, prinyat_allpick.png, ...).
+# Достатньо покласти новий вирізаний скриншот кнопки у assets/ з префіксом prinyat.
+IMG_ACCEPT_VARIANTS = sorted(ASSETS_DIR.glob("prinyat*.png"))
+
 # Параметри розпізнавання
 CONFIDENCE = {
     "accept": float(os.getenv("CONFIDENCE_ACCEPT", "0.80")),
@@ -37,6 +41,16 @@ MESSAGE_COOLDOWN = float(os.getenv("MESSAGE_COOLDOWN", "5.00"))
 
 # Регіон пошуку (None = весь екран)
 SEARCH_REGION: Optional[tuple] = None
+
+# Регіон пошуку кнопки "Прийняти" (центр екрана).
+# Вікно "Ваша гра готова" з деталями матчу вище за старе, тому регіон більший.
+ACCEPT_REGION_WIDTH = int(os.getenv("ACCEPT_REGION_WIDTH", "1000"))
+ACCEPT_REGION_HEIGHT = int(os.getenv("ACCEPT_REGION_HEIGHT", "600"))
+
+# Резервний пошук кнопки за кольором, якщо жоден шаблон не збігся
+ACCEPT_COLOR_FALLBACK = os.getenv("ACCEPT_COLOR_FALLBACK", "1").strip().lower() in (
+    "1", "true", "yes", "on"
+)
 
 def validate_config() -> bool:
     """Перевірити, чи всі необхідні налаштування присутні."""

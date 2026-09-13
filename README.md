@@ -73,6 +73,29 @@ All settings can be adjusted in `.env`:
 - `CONFIDENCE_*` — recognition confidence thresholds (0.0-1.0)
 - `CLICK_COOLDOWN` — pause after click (seconds)
 - `MESSAGE_COOLDOWN` — minimum time between Telegram messages (seconds)
+- `ACCEPT_REGION_WIDTH` / `ACCEPT_REGION_HEIGHT` — search area around screen center
+- `ACCEPT_COLOR_FALLBACK` — detect the green Accept button by color (`1`/`0`)
+
+### Accept Button Variants
+
+Dota 2 shows several versions of the ready popup (plain button, or the full
+"Your game is ready / ALL PICK" panel with match quality details). The helper
+handles them in two ways:
+
+1. **Templates** — every `assets/prinyat*.png` file is tried. To add a variant,
+   crop just the button from a screenshot and save it as e.g.
+   `assets/prinyat_allpick.png`.
+2. **Color fallback** — if no template matches, the green button is located by
+   its color and shape inside the center region. This works without any template.
+
+To check what the bot currently sees, open the ready popup and run:
+
+```bash
+python image_recognition.py
+```
+
+It prints the result of every detection method and saves an annotated screenshot
+to `logs/accept_debug.png`.
 
 ### Project Structure
 
@@ -185,6 +208,29 @@ python main.py
 - `CONFIDENCE_*` — пороги впевненості розпізнавання (0.0-1.0)
 - `CLICK_COOLDOWN` — пауза після кліку (секунди)
 - `MESSAGE_COOLDOWN` — мінімальний час між Telegram повідомленнями (секунди)
+- `ACCEPT_REGION_WIDTH` / `ACCEPT_REGION_HEIGHT` — область пошуку навколо центра екрана
+- `ACCEPT_COLOR_FALLBACK` — пошук зеленої кнопки за кольором (`1`/`0`)
+
+### Варіанти кнопки "Прийняти"
+
+Dota 2 показує кілька версій вікна прийняття: просту кнопку або повну панель
+«Ваша гра готова / ALL PICK» з деталями якості матчу. Бот обробляє їх двома
+способами:
+
+1. **Шаблони** — перебираються всі файли `assets/prinyat*.png`. Щоб додати новий
+   варіант, виріжте зі скриншота саму кнопку та збережіть, наприклад, як
+   `assets/prinyat_allpick.png`.
+2. **Пошук за кольором** — якщо жоден шаблон не збігся, зелена кнопка шукається
+   за кольором і формою в центральній області екрана. Працює без шаблону взагалі.
+
+Щоб перевірити, що саме бачить бот, відкрийте вікно прийняття та запустіть:
+
+```bash
+python image_recognition.py
+```
+
+Команда виведе результат кожного способу пошуку та збереже скриншот з розміткою
+у `logs/accept_debug.png`.
 
 ### Збірка виконуваного файлу
 
