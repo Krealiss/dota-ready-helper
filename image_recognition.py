@@ -9,7 +9,7 @@ import pyautogui as pag
 from PIL import Image
 
 from logger import logger
-from config import CONFIDENCE, CLICK_COOLDOWN
+from config import CLICK_COOLDOWN
 
 # Лок для безпечних кліків з різних потоків
 _gui_lock = threading.Lock()
@@ -45,38 +45,6 @@ def validate_image(path: Path) -> bool:
     except Exception as e:
         logger.error(f"Помилка валідації {path}: {e}")
         return False
-
-def find_on_screen(
-    image_path: Path,
-    confidence: Optional[float] = None,
-    region: Optional[Tuple[int, int, int, int]] = None,
-    grayscale: bool = True
-) -> Optional[Any]:
-    """
-    Знайти зображення на екрані.
-
-    Args:
-        image_path: Шлях до еталонного зображення
-        confidence: Поріг впевненості (0.0-1.0)
-        region: Регіон пошуку (left, top, width, height)
-        grayscale: Використовувати grayscale для прискорення
-
-    Returns:
-        Box з координатами або None
-    """
-    try:
-        conf = confidence if confidence is not None else 0.7
-        return pag.locateOnScreen(
-            str(image_path),
-            confidence=conf,
-            region=region,
-            grayscale=grayscale
-        )
-    except pag.ImageNotFoundException:
-        return None
-    except Exception as e:
-        logger.debug(f"Помилка пошуку {image_path.name}: {e}")
-        return None
 
 def find_template(
     needle: Any,
@@ -150,24 +118,6 @@ def find_green_button(
     except Exception as e:
         logger.debug(f"Помилка пошуку кнопки за кольором: {e}")
         return None
-
-def find_green_button_on_screen(
-    region: Optional[Tuple[int, int, int, int]] = None,
-    debug_path: Optional[Path] = None
-) -> Optional[Box]:
-    """
-    Сумісний врапер: сам знімає екран і шукає кнопку.
-
-    Використовується, доки dota_helper не перейшов на знімок вікна (Task 6).
-    """
-    try:
-        shot = pag.screenshot(region=region)
-    except Exception as e:
-        logger.debug(f"Не вдалось зробити скриншот: {e}")
-        return None
-
-    offset = (region[0], region[1]) if region else (0, 0)
-    return find_green_button(shot, offset=offset, debug_path=debug_path)
 
 def _detect_green_button(cv2, np, image, offset_x, offset_y, debug_path) -> Optional[Box]:
     """Внутрішня реалізація пошуку зеленої кнопки на готовому зображенні."""
@@ -286,41 +236,3 @@ def double_click_center(
     time.sleep(CLICK_COOLDOWN)
     return True
 
-def get_center_region(width: int = 800, height: int = 400) -> Tuple[int, int, int, int]:
-    """
-    Отримати регіон по центру екрана.
-
-    Args:
-        width: Ширина регіону
-        height: Висота регіону
-
-    Returns:
-        Tuple (left, top, width, height)
-    """
-    sw, sh = pag.size()
-    # Не виходити за межі екрана, інакше скриншот регіону впаде
-    width = min(width, sw)
-    height = min(height, sh)
-    cx, cy = sw // 2, sh // 2
-    return (cx - width // 2, cy - height // 2, width, height)
-
-if __name__ == "__main__":
-    # Налагодження: показати, чи бачить бот кнопку "Прийняти" просто зараз.
-    # Запуск: python image_recognition.py (вікно прийняття має бути на екрані)
-    from config import (
-        IMG_ACCEPT_VARIANTS, ACCEPT_REGION_WIDTH, ACCEPT_REGION_HEIGHT
-    )
-
-    test_region = get_center_region(ACCEPT_REGION_WIDTH, ACCEPT_REGION_HEIGHT)
-    print(f"Регіон пошуку: {test_region}")
-
-    for variant in IMG_ACCEPT_VARIANTS:
-        found = find_on_screen(
-            variant, confidence=CONFIDENCE["accept"], region=test_region
-        )
-        print(f"  шаблон {variant.name}: {found}")
-
-    debug_file = Path(__file__).parent / "logs" / "accept_debug.png"
-    debug_file.parent.mkdir(exist_ok=True)
-    print(f"  пошук за кольором: {find_green_button_on_screen(test_region, debug_path=debug_file)}")
-    print(f"Скриншот з розміткою: {debug_file}")

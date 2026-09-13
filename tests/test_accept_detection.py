@@ -174,12 +174,3 @@ def test_button_inside_green_frame_is_not_skipped(screen):
 
     assert box is not None
     assert box.width == pytest.approx(expected[2], abs=8)
-
-
-def test_center_region_is_clamped_to_screen():
-    """Завеликий регіон не повинен виходити за межі екрана."""
-    sw, sh = pag.size()
-    left, top, width, height = ir.get_center_region(sw * 2, sh * 2)
-
-    assert left >= 0 and top >= 0
-    assert width <= sw and height <= sh

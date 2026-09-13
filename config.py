@@ -2,7 +2,6 @@
 """Конфігурація Dota Ready Helper."""
 import os
 from pathlib import Path
-from typing import Optional
 from dotenv import load_dotenv
 
 # Завантажити змінні з .env
@@ -47,16 +46,14 @@ IMG_SEARCH_BTN = ASSETS_DIR / "search_game.png"
 IMG_ACCEPT = ASSETS_DIR / "prinyat.png"
 IMG_STOP = ASSETS_DIR / "stop.png"
 
-# Усі варіанти кнопки "Прийняти" (prinyat.png, prinyat_allpick.png, ...).
-# Достатньо покласти новий вирізаний скриншот кнопки у assets/ з префіксом prinyat.
-IMG_ACCEPT_VARIANTS = sorted(ASSETS_DIR.glob("prinyat*.png"))
-
-# Параметри розпізнавання
+# Параметри розпізнавання. Ключ відповідає імені елемента калібрування
+# (calibration.ELEMENTS); "stop_btn" перейменовано на "stop", але змінна
+# оточення лишається CONFIDENCE_STOP_BTN заради сумісності .env.
 CONFIDENCE = {
     "accept": _env_float("CONFIDENCE_ACCEPT", 0.80),
     "searching": _env_float("CONFIDENCE_SEARCHING", 0.70),
     "search_btn": _env_float("CONFIDENCE_SEARCH_BTN", 0.70),
-    "stop_btn": _env_float("CONFIDENCE_STOP_BTN", 0.75),
+    "stop": _env_float("CONFIDENCE_STOP_BTN", 0.75),
 }
 
 # Таймінги
@@ -64,13 +61,11 @@ SCAN_INTERVAL = _env_float("SCAN_INTERVAL", 0.30)
 CLICK_COOLDOWN = _env_float("CLICK_COOLDOWN", 1.00)
 MESSAGE_COOLDOWN = _env_float("MESSAGE_COOLDOWN", 5.00)
 
-# Регіон пошуку (None = весь екран)
-SEARCH_REGION: Optional[tuple] = None
+# Калібрування
+CALIBRATION_DIR = BASE_DIR / "calibration"
 
-# Регіон пошуку кнопки "Прийняти" (центр екрана).
-# Вікно "Ваша гра готова" з деталями матчу вище за старе, тому регіон більший.
-ACCEPT_REGION_WIDTH = _env_int("ACCEPT_REGION_WIDTH", 1000)
-ACCEPT_REGION_HEIGHT = _env_int("ACCEPT_REGION_HEIGHT", 600)
+# Пауза між перевірками, коли Dota не запущена
+NO_GAME_POLL_INTERVAL = _env_float("NO_GAME_POLL_INTERVAL", 2.0)
 
 # Резервний пошук кнопки за кольором, якщо жоден шаблон не збігся
 ACCEPT_COLOR_FALLBACK = os.getenv("ACCEPT_COLOR_FALLBACK", "1").strip().lower() in (

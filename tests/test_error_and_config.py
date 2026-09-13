@@ -80,14 +80,14 @@ def test_config_imports_with_broken_env(monkeypatch):
     """Регресія: некоректне число у .env валило імпорт config до валідації."""
     monkeypatch.setenv("CONFIDENCE_ACCEPT", "дуже впевнено")
     monkeypatch.setenv("SCAN_INTERVAL", "швидко")
-    monkeypatch.setenv("ACCEPT_REGION_WIDTH", "весь екран")
+    monkeypatch.setenv("NO_GAME_POLL_INTERVAL", "не скоро")
 
     try:
         reloaded = importlib.reload(config)
 
         assert reloaded.CONFIDENCE["accept"] == 0.80
         assert reloaded.SCAN_INTERVAL == 0.30
-        assert reloaded.ACCEPT_REGION_WIDTH == 1000
+        assert reloaded.NO_GAME_POLL_INTERVAL == 2.0
     finally:
         # повернути модуль до стану з реального оточення
         monkeypatch.undo()
