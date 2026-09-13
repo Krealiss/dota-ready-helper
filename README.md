@@ -5,6 +5,7 @@
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![GitHub stars](https://img.shields.io/github/stars/Krealiss/dota-ready-helper)](https://github.com/Krealiss/dota-ready-helper/stargazers)
 [![GitHub issues](https://img.shields.io/github/issues/Krealiss/dota-ready-helper)](https://github.com/Krealiss/dota-ready-helper/issues)
+[![tests](https://github.com/Krealiss/dota-ready-helper/actions/workflows/tests.yml/badge.svg)](https://github.com/Krealiss/dota-ready-helper/actions/workflows/tests.yml)
 
 🎮 Automatic match acceptance helper for Dota 2 with Telegram bot control
 
@@ -127,6 +128,17 @@ pyinstaller build.spec
 
 The executable will be in the `dist/` folder.
 
+### Running Tests
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest tests -v
+```
+
+The suite covers accept-button detection (all popup variants, plus false
+positives on a normal game screen), Telegram authorization and match
+statistics. It runs on every push and pull request via GitHub Actions.
+
 ### Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -239,6 +251,18 @@ pyinstaller build.spec
 ```
 
 Виконуваний файл буде у папці `dist/`.
+
+### Запуск тестів
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest tests -v
+```
+
+Тести покривають розпізнавання кнопки "Прийняти" (усі варіанти вікна та
+відсутність хибних спрацювань на звичайному ігровому екрані), авторизацію
+Telegram і облік матчів. Вони запускаються на кожен push і pull request
+через GitHub Actions.
 
 ### Внесок у проект
 

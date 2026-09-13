@@ -54,6 +54,10 @@ crashes/
 
 # Stats and temporary data
 stats/
+exports/
+
+# Tests
+.pytest_cache/
 
 # Build artifacts
 *.exe
