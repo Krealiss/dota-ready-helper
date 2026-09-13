@@ -3,17 +3,16 @@
 Dota Ready Helper
 Автоматичне прийняття матчів у Dota 2 з керуванням через Telegram.
 """
+import importlib
 import sys
 import pyautogui as pag
 import keyboard
 
+import config
 from logger import logger
-from config import validate_config, APP_VERSION
-from telegram_bot import TelegramBot
-from dota_helper import DotaHelper
-from error_handler import setup_exception_handler
+from config import APP_VERSION
 
-def setup_hotkeys(helper: DotaHelper):
+def setup_hotkeys(helper):
     """Налаштувати гарячі клавіші."""
 
     def on_f6():
@@ -37,20 +36,50 @@ def setup_hotkeys(helper: DotaHelper):
 
     logger.info("Гарячі клавіші налаштовано")
 
+def ensure_configured(force_setup: bool = False) -> bool:
+    """
+    Перевірити налаштування, за потреби показавши майстер.
+
+    Returns:
+        True якщо конфігурація валідна
+    """
+    if not force_setup and config.validate_config():
+        return True
+
+    # Майстер вміє полагодити лише відсутні дані Telegram
+    if not force_setup and config.credentials_present():
+        return False
+
+    logger.info("Запускаю майстер налаштування")
+    from setup_dialog import run_setup
+
+    if not run_setup():
+        logger.info("Налаштування скасовано")
+        return False
+
+    # Перечитати .env після збереження
+    config.load_dotenv(override=True)
+    importlib.reload(config)
+    return config.validate_config()
+
 def main():
     """Точка входу."""
     logger.info("=" * 50)
     logger.info(f"Dota Ready Helper v{APP_VERSION}")
     logger.info("=" * 50)
 
-    # Перевірка конфігурації
-    if not validate_config():
-        logger.error("❌ Помилка конфігурації. Перевір файл .env")
-        logger.info("Створи файл .env на основі .env.example")
+    # Перевірка конфігурації (--setup відкриває майстер примусово)
+    if not ensure_configured(force_setup="--setup" in sys.argv):
+        logger.error("❌ Конфігурація неповна — деталі вище")
         input("\nНатисни Enter для виходу...")
         sys.exit(1)
 
     logger.info("✅ Конфігурація валідна")
+
+    # Імпорт після налаштування: ці модулі читають значення з config при імпорті
+    from telegram_bot import TelegramBot
+    from dota_helper import DotaHelper
+    from error_handler import setup_exception_handler
 
     # Увімкнути failsafe (рух миші в кут екрана зупиняє PyAutoGUI)
     pag.FAILSAFE = True

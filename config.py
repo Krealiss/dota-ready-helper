@@ -77,6 +77,10 @@ ACCEPT_COLOR_FALLBACK = os.getenv("ACCEPT_COLOR_FALLBACK", "1").strip().lower() 
     "1", "true", "yes", "on"
 )
 
+def credentials_present() -> bool:
+    """Чи заповнені дані Telegram — те, що вміє полагодити майстер налаштування."""
+    return bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)
+
 def validate_config() -> bool:
     """Перевірити, чи всі необхідні налаштування присутні."""
     if not TELEGRAM_BOT_TOKEN:

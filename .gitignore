@@ -14,7 +14,6 @@ create_icon.py
 run_tests.bat
 test_run.bat
 test_setup.py
-setup_dialog.py
 splash_screen.py
 main_gui.py
 

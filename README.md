@@ -38,22 +38,28 @@ cd dota-ready-helper
 pip install -r requirements.txt
 ```
 
-3. **Configure environment:**
-   - Copy `.env.example` to `.env`
-   - Add your Telegram bot token and chat ID
-   - Adjust recognition thresholds if needed
-
-4. **Run:**
+3. **Run:**
 ```bash
 python main.py
 ```
 
+On the first run a setup window opens and writes the `.env` file for you.
+Fine-tune recognition thresholds there later if needed.
+
 ### Telegram Bot Setup
 
-1. Create a bot via [@BotFather](https://t.me/botfather)
-2. Get your bot token
-3. Get your chat ID (send a message to your bot, then visit `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`)
-4. Add both to `.env` file
+1. Create a bot via [@BotFather](https://t.me/botfather) and copy the token
+2. Send any message to your new bot
+3. Start the helper — the setup window asks for the token and fills in the
+   chat ID by itself, then sends a test message to confirm everything works
+
+To change the token or chat ID later:
+
+```bash
+python main.py --setup
+```
+
+Without PyQt6 installed the same wizard runs in the console.
 
 ### Controls
 
@@ -111,7 +117,7 @@ dota-ready-helper/
 ├── stats_tracker.py     # Statistics tracking
 ├── error_handler.py     # Error handling
 ├── report_exporter.py   # Report export (CSV/JSON/HTML/TXT)
-├── gui.py               # GUI interface (not wired into main.py yet)
+├── setup_dialog.py      # First-run setup wizard (writes .env)
 ├── .env.example         # Environment template
 ├── requirements.txt     # Dependencies
 ├── requirements-dev.txt # Dependencies for running tests
@@ -190,22 +196,28 @@ cd dota-ready-helper
 pip install -r requirements.txt
 ```
 
-3. **Налаштуйте оточення:**
-   - Скопіюйте `.env.example` в `.env`
-   - Додайте токен Telegram бота та chat ID
-   - За потреби налаштуйте пороги розпізнавання
-
-4. **Запустіть:**
+3. **Запустіть:**
 ```bash
 python main.py
 ```
 
+При першому запуску відкриється вікно налаштування, яке саме створить файл
+`.env`. Пороги розпізнавання можна підправити там же пізніше.
+
 ### Налаштування Telegram бота
 
-1. Створіть бота через [@BotFather](https://t.me/botfather)
-2. Отримайте токен бота
-3. Отримайте ваш chat ID (надішліть повідомлення боту, потім відвідайте `https://api.telegram.org/bot<ВАШ_ТОКЕН>/getUpdates`)
-4. Додайте обидва значення у файл `.env`
+1. Створіть бота через [@BotFather](https://t.me/botfather) і скопіюйте токен
+2. Напишіть своєму боту будь-яке повідомлення
+3. Запустіть програму — вікно налаштування запитає токен, саме визначить
+   chat ID і надішле тестове повідомлення для перевірки
+
+Щоб змінити токен або chat ID пізніше:
+
+```bash
+python main.py --setup
+```
+
+Без встановленого PyQt6 той самий майстер працює у консолі.
 
 ### Керування
 
