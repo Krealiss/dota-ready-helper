@@ -88,6 +88,20 @@ def test_scale_to_resizes_templates_and_marks_source(store, tmp_path):
     assert store.is_stale(BIG_WINDOW) is False
 
 
+def test_scale_to_keeps_aspect_ratio_on_non_16_9_target(store, tmp_path):
+    """21:9 ціль не повинна розтягувати шаблон по ширині окремо від висоти."""
+    store.window_size = (1920, 1080)
+    store.add("search_btn", button(330, 50), RelRect(0.741, 0.823, 0.171, 0.045), "manual")
+    store.save()
+
+    ultrawide = WindowInfo(0, 0, 3440, 1440, "Dota 2")
+    store.scale_to(ultrawide)
+
+    scaled = Image.open(store.template_path("search_btn"))
+    original_aspect = 330 / 50
+    assert scaled.width / scaled.height == pytest.approx(original_aspect, rel=0.02)
+
+
 def test_foreign_format_version_is_discarded(tmp_path):
     directory = tmp_path / "calibration"
     directory.mkdir()

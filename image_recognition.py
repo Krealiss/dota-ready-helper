@@ -97,6 +97,15 @@ def find_template(
         Box з координатами або None
     """
     conf = confidence if confidence is not None else 0.7
+
+    # pyscreeze приймає лише str/ndarray/PIL.Image — Path (те, що завжди
+    # повертає Calibration.template_path()) інакше валить TypeError,
+    # який раніше тихо ковтався нижче і виглядав як "не знайдено".
+    if isinstance(needle, Path):
+        needle = str(needle)
+    if isinstance(haystack, Path):
+        haystack = str(haystack)
+
     try:
         box = pag.locate(needle, haystack, confidence=conf, grayscale=True)
     except pag.ImageNotFoundException:

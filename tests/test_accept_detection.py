@@ -134,6 +134,19 @@ def test_find_template_returns_none_when_absent():
                             confidence=0.9) is None
 
 
+def test_find_template_accepts_path_needle(tmp_path):
+    """Регресія: Calibration.template_path() віддає Path, а не PIL-зображення чи str."""
+    frame, expected = new_dialog()
+    x, y, w, h = expected
+    needle_path = tmp_path / "button.png"
+    frame.crop((x, y, x + w, y + h)).save(needle_path)
+
+    box = ir.find_template(needle_path, frame, confidence=0.9)
+
+    assert box is not None
+    assert abs(box.left - x) <= 2 and abs(box.top - y) <= 2
+
+
 @pytest.mark.parametrize("builder", [new_dialog, gradient_dialog, old_dialog],
                          ids=["all_pick", "gradient", "old"])
 def test_click_lands_on_button(screen, builder):

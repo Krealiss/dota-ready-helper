@@ -58,7 +58,7 @@ def test_scaled_calibration_survives_resolution_change(tmp_path, width, height):
     region = store.search_region("search_btn", big)
     crop = target.crop((region[0], region[1], region[0] + region[2], region[1] + region[3]))
     box = ir.find_template(store.template_path("search_btn"), crop,
-                           confidence=0.75, offset=region[:2])
+                           confidence=cal.SCALED_CONFIDENCE, offset=region[:2])
 
     assert box is not None, f"шаблон не знайшовся після масштабування до {width}x{height}"
     assert abs(box.left - target_rects["search_btn"][0]) <= 6

@@ -17,6 +17,12 @@ ELEMENTS = ("search_btn", "searching", "stop", "accept")
 # Область пошуку більша за кнопку в стільки разів
 SEARCH_MARGIN = 2.5
 
+# Поріг впевненості для елемента з source == "scaled": LANCZOS-масштабування
+# трохи розмиває шрифт порівняно зі свіжо відрендереним текстом, тому
+# перерахований шаблон вимагає нижчого порогу, ніж 0.9 для точного збігу
+# пікселів на тій самій конфігурації, на якій його знято.
+SCALED_CONFIDENCE = 0.65
+
 @dataclass
 class Element:
     """Один відкалібрований елемент інтерфейсу."""
@@ -136,8 +142,11 @@ class Calibration:
         if not self.window_size:
             return
 
-        factor_x = window.width / self.window_size[0]
-        factor_y = window.height / self.window_size[1]
+        # Інтерфейс Dota масштабується за висотою вікна і зберігає пропорції
+        # елементів — окремі коефіцієнти для ширини й висоти спотворювали б
+        # шаблон на будь-якому співвідношенні сторін, відмінному від того,
+        # на якому знято калібрування (напр. 21:9 проти 16:9).
+        factor = window.height / self.window_size[1]
 
         for name, element in self.elements.items():
             path = self.directory / element.file
@@ -146,8 +155,8 @@ class Calibration:
 
             with Image.open(path) as image:
                 resized = image.resize(
-                    (max(1, round(image.width * factor_x)),
-                     max(1, round(image.height * factor_y))),
+                    (max(1, round(image.width * factor)),
+                     max(1, round(image.height * factor))),
                     Image.LANCZOS
                 )
                 resized.save(path)
