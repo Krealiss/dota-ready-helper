@@ -105,6 +105,43 @@ def test_single_capture_per_tick(helper, monkeypatch):
     assert len(captures) == 1
 
 
+def test_pending_stats_answered_without_game_window(helper, monkeypatch):
+    """
+    Ruling 9: /stats не потребує вікна Dota і не повинен чекати на нього.
+    """
+    monkeypatch.setattr(dh.dota_window, "find_window", lambda: None)
+    monkeypatch.setattr(helper.stats, "get_formatted_summary", lambda: "STATS_TEXT")
+    helper.pending_stats = True
+
+    helper.tick()
+
+    assert "STATS_TEXT" in helper.telegram_bot.messages
+    assert helper.pending_stats is False
+
+
+def test_pending_export_runs_without_game_window(helper, monkeypatch):
+    """
+    Ruling 9: /export теж не потребує вікна Dota — не повинен мовчати,
+    доки гра не запущена.
+    """
+    monkeypatch.setattr(dh.dota_window, "find_window", lambda: None)
+    calls = []
+
+    class FakeExporter:
+        def export_all(self, output_dir):
+            calls.append(output_dir)
+            return {"csv": True, "json": True, "html": True, "txt": True}
+
+    helper.exporter = FakeExporter()
+    helper.pending_export = True
+
+    helper.tick()
+
+    assert calls, "export_all мав бути викликаний"
+    assert helper.pending_export is False
+    assert any("Експорт завершено" in m for m in helper.telegram_bot.messages)
+
+
 def test_scaled_element_is_searched_with_lower_confidence(helper, monkeypatch):
     """
     Ruling 8: елемент з source == "scaled" (перерахований під інший розмір

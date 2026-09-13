@@ -6,7 +6,7 @@ from pathlib import Path
 
 from logger import logger
 import dota_window
-from calibration import Calibration, ELEMENTS, SCALED_CONFIDENCE
+from calibration import Calibration, SCALED_CONFIDENCE
 from config import (
     CONFIDENCE, SCAN_INTERVAL, MESSAGE_COOLDOWN,
     CALIBRATION_DIR, NO_GAME_POLL_INTERVAL, ACCEPT_COLOR_FALLBACK
@@ -95,6 +95,19 @@ class DotaHelper:
 
     def tick(self):
         """Одна ітерація циклу. Повертає паузу до наступної."""
+        # Ruling 9: /stats і /export не залежать від вікна Dota, тому
+        # обробляються до перевірки вікна — інакше вони мовчки чекають на
+        # запуск гри, хоча раніше (у старому run()) працювали завжди.
+        if self.pending_stats:
+            self.pending_stats = False
+            self.telegram_bot.send_message(self.stats.get_formatted_summary())
+            return 0.3
+
+        if self.pending_export:
+            self.pending_export = False
+            self._handle_export()
+            return 0.3
+
         window = dota_window.find_window()
         if not dota_window.is_usable(window):
             self._set_state(State.NO_GAME)
@@ -112,16 +125,6 @@ class DotaHelper:
             self.pending_stop = False
             self._handle_stop(window, frame)
             return 0.6
-
-        if self.pending_stats:
-            self.pending_stats = False
-            self.telegram_bot.send_message(self.stats.get_formatted_summary())
-            return 0.3
-
-        if self.pending_export:
-            self.pending_export = False
-            self._handle_export()
-            return 0.3
 
         if self.check_accept_button(window, frame):
             return 1.0
