@@ -205,6 +205,32 @@ class DotaHelper:
                 f"📥 Експорт завершено!\n\nУспішно: {sum(results.values())}/4 форматів"
             )
 
+    def _learn_accept(self, window, frame, box):
+        """
+        Запам'ятати кнопку 'Прийняти' з першого спійманого матчу.
+
+        Показати цей попап на вимогу неможливо, тому шаблон знімається
+        під час реальної гри й далі працює точний збіг.
+        """
+        if self.calibration.has("accept"):
+            return
+
+        with ErrorHandler("Самокалібрування 'Прийняти'", silent=True):
+            local = (box.left - window.left, box.top - window.top)
+            crop = frame.crop((local[0], local[1],
+                               local[0] + box.width, local[1] + box.height))
+
+            if not self.calibration.window_size:
+                self.calibration.window_size = (window.width, window.height)
+
+            self.calibration.add(
+                "accept", crop,
+                dota_window.to_relative(window, (box.left, box.top,
+                                                 box.width, box.height)),
+                "opportunistic"
+            )
+            self.calibration.save()
+
     def check_accept_button(self, window, frame) -> bool:
         """Знайти кнопку 'Прийняти' у кадрі та натиснути її."""
         accept = self.locate("accept", window, frame)
@@ -223,6 +249,7 @@ class DotaHelper:
                 return True
 
             self.stats.match_accepted()
+            self._learn_accept(window, frame, accept)
             summary = self.stats.get_summary()
             self._debounced_message(
                 f"🎮 Гру прийнято!\n\n"

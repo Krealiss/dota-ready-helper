@@ -169,3 +169,35 @@ def test_scaled_element_is_searched_with_lower_confidence(helper, monkeypatch):
     helper.locate("search_btn", window, frame)
 
     assert captured["confidence"] == cal.SCALED_CONFIDENCE
+
+
+def test_accept_is_learned_from_the_first_match(helper, monkeypatch):
+    window = WindowInfo(0, 0, 1920, 1080, "Dota 2")
+    frame, rects = mock_dota.render_ready_popup()
+    monkeypatch.setattr(dh.dota_window, "find_window", lambda: window)
+    monkeypatch.setattr(dh.dota_window, "capture", lambda w: frame)
+    monkeypatch.setattr(dh, "click_center", lambda box, **kw: True)
+
+    helper.tick()
+
+    element = helper.calibration.element("accept")
+    assert element is not None
+    assert element.source == "opportunistic"
+    assert helper.calibration.template_path("accept").exists()
+    assert element.rect.x == pytest.approx(rects["accept"][0] / 1920, abs=0.01)
+
+
+def test_accept_is_not_relearned_when_already_calibrated(helper, monkeypatch):
+    window = WindowInfo(0, 0, 1920, 1080, "Dota 2")
+    frame, rects = mock_dota.render_ready_popup()
+    x, y, w, h = rects["accept"]
+    helper.calibration.window_size = (1920, 1080)
+    helper.calibration.add("accept", frame.crop((x, y, x + w, y + h)),
+                           to_relative(window, (x, y, w, h)), "manual")
+    monkeypatch.setattr(dh.dota_window, "find_window", lambda: window)
+    monkeypatch.setattr(dh.dota_window, "capture", lambda w: frame)
+    monkeypatch.setattr(dh, "click_center", lambda box, **kw: True)
+
+    helper.tick()
+
+    assert helper.calibration.element("accept").source == "manual"
