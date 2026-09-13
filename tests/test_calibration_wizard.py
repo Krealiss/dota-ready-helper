@@ -54,6 +54,25 @@ def test_candidates_are_deduplicated(tmp_path):
     assert len(wiz.detect_candidates(frame, [template, second])) == 1
 
 
+def test_one_template_matches_at_multiple_scales(tmp_path):
+    """Один шаблон на кількох масштабах — один кандидат найкращої якості."""
+    frame, rects = mock_dota.render_menu(1920, 1080)
+    x, y, w, h = rects["search_btn"]
+    template = tmp_path / "search_game.png"
+    frame.crop((x, y, x + w, y + h)).save(template)
+
+    # На тому ж кадрі масштаби 0.9-1.1 усі матимуть хороший збіг
+    candidates = wiz.detect_candidates(frame, [template], confidence=0.7)
+
+    # Але результат має бути один — найкраще матчування
+    assert len(candidates) == 1
+    # Результат має бути дуже близько до оригіналу
+    assert abs(candidates[0].left - x) <= 2
+    assert abs(candidates[0].top - y) <= 2
+    assert abs(candidates[0].width - w) <= 2
+    assert abs(candidates[0].height - h) <= 2
+
+
 @pytest.mark.parametrize("colour,expected", [
     ((0, 0, 0), True),
     ((3, 3, 3), True),

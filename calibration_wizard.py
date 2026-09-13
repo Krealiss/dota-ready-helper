@@ -6,7 +6,7 @@ from typing import List, Optional
 import numpy as np
 from PIL import Image
 
-from config import ASSETS_DIR, CONFIDENCE
+from config import ASSETS_DIR
 from image_recognition import Box, find_green_button, find_template
 from logger import logger
 
@@ -45,16 +45,27 @@ def _overlaps(first: Box, second: Box) -> bool:
     smaller = min(first.width * first.height, second.width * second.height)
     return (dx * dy) / smaller > OVERLAP_LIMIT
 
+def _match_score(needle, haystack):
+    """Кореляція шаблону з кадром: (оцінка, (x, y) лівого верхнього кута)."""
+    import cv2
+
+    needle_gray = cv2.cvtColor(np.array(needle.convert("RGB")), cv2.COLOR_RGB2GRAY)
+    haystack_gray = cv2.cvtColor(np.array(haystack.convert("RGB")), cv2.COLOR_RGB2GRAY)
+    result = cv2.matchTemplate(haystack_gray, needle_gray, cv2.TM_CCOEFF_NORMED)
+    _, score, _, location = cv2.minMaxLoc(result)
+    return float(score), location
+
 def detect_candidates(frame: Image.Image, templates: List[Path],
                       confidence: Optional[float] = None) -> List[Box]:
     """
     Знайти на кадрі місця, схожі на кнопку.
 
     Шаблони перебираються в діапазоні масштабів, бо розмір інтерфейсу
-    користувача заздалегідь невідомий.
+    користувача заздалегідь невідомий. Кандидати ранжуються за кореляцією
+    та дедублюються по перекриттю.
     """
     conf = confidence if confidence is not None else 0.7
-    found: List[Box] = []
+    candidates: List[tuple[float, Box]] = []
 
     for template in templates:
         try:
@@ -70,10 +81,22 @@ def detect_candidates(frame: Image.Image, templates: List[Path],
             if size[0] > frame.width or size[1] > frame.height:
                 continue
 
-            box = find_template(needle.resize(size, Image.LANCZOS), frame,
-                                confidence=conf)
-            if box and not any(_overlaps(box, existing) for existing in found):
-                found.append(box)
+            resized = needle.resize(size, Image.LANCZOS)
+            try:
+                score, (x, y) = _match_score(resized, frame)
+            except Exception as e:
+                logger.debug(f"Помилка обчислення кореляції для шаблону {template} на масштабі {scale}: {e}")
+                continue
+
+            if score >= conf:
+                candidates.append((score, Box(x, y, size[0], size[1])))
+
+    # Сортувати за оцінкою у спаданні та дедублювати перекриваючі кандидати
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    found: List[Box] = []
+    for score, box in candidates:
+        if not any(_overlaps(box, existing) for existing in found):
+            found.append(box)
 
     return found
 
