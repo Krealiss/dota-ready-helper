@@ -11,7 +11,7 @@ from config import (
     ACCEPT_REGION_WIDTH, ACCEPT_REGION_HEIGHT, ACCEPT_COLOR_FALLBACK
 )
 from image_recognition import (
-    find_on_screen, find_green_button, click_center, double_click_center,
+    find_on_screen, find_green_button_on_screen, click_center, double_click_center,
     get_center_region
 )
 from stats_tracker import Statistics
@@ -130,7 +130,7 @@ class DotaHelper:
                 return box, variant.name
 
         if ACCEPT_COLOR_FALLBACK:
-            box = find_green_button(self.accept_region)
+            box = find_green_button_on_screen(self.accept_region)
             if box:
                 return box, "пошук за кольором"
 

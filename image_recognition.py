@@ -78,22 +78,56 @@ def find_on_screen(
         logger.debug(f"Помилка пошуку {image_path.name}: {e}")
         return None
 
+def find_template(
+    needle: Any,
+    haystack: Any,
+    confidence: Optional[float] = None,
+    offset: Tuple[int, int] = (0, 0)
+) -> Optional[Box]:
+    """
+    Знайти шаблон у готовому зображенні.
+
+    Args:
+        needle: Еталон — шлях або зображення PIL
+        haystack: Де шукати — зображення PIL
+        confidence: Поріг збігу (0.0-1.0)
+        offset: Зсув, який додається до знайдених координат
+
+    Returns:
+        Box з координатами або None
+    """
+    conf = confidence if confidence is not None else 0.7
+    try:
+        box = pag.locate(needle, haystack, confidence=conf, grayscale=True)
+    except pag.ImageNotFoundException:
+        return None
+    except Exception as e:
+        logger.debug(f"Помилка пошуку шаблону: {e}")
+        return None
+
+    if box is None:
+        return None
+
+    return Box(box.left + offset[0], box.top + offset[1], box.width, box.height)
+
 def find_green_button(
-    region: Optional[Tuple[int, int, int, int]] = None,
+    image: Any,
+    offset: Tuple[int, int] = (0, 0),
     debug_path: Optional[Path] = None
 ) -> Optional[Box]:
     """
-    Знайти зелену кнопку "Прийняти" за кольором, без еталонного зображення.
+    Знайти зелену кнопку "Прийняти" у готовому зображенні.
 
     Працює для будь-якого варіанту вікна "Ваша гра готова" — кнопка шукається
     як суцільний зелений прямокутник з білим написом усередині.
 
     Args:
-        region: Регіон пошуку (left, top, width, height)
-        debug_path: Куди зберегти анотований скриншот (для налагодження)
+        image: Зображення PIL, у якому шукати
+        offset: Зсув до абсолютних координат екрана
+        debug_path: Куди зберегти анотований знімок
 
     Returns:
-        Box з абсолютними координатами екрана або None
+        Box з абсолютними координатами або None
     """
     try:
         import cv2
@@ -103,22 +137,32 @@ def find_green_button(
         return None
 
     try:
+        return _detect_green_button(cv2, np, image, offset[0], offset[1], debug_path)
+    except Exception as e:
+        logger.debug(f"Помилка пошуку кнопки за кольором: {e}")
+        return None
+
+def find_green_button_on_screen(
+    region: Optional[Tuple[int, int, int, int]] = None,
+    debug_path: Optional[Path] = None
+) -> Optional[Box]:
+    """
+    Сумісний врапер: сам знімає екран і шукає кнопку.
+
+    Використовується, доки dota_helper не перейшов на знімок вікна (Task 6).
+    """
+    try:
         shot = pag.screenshot(region=region)
     except Exception as e:
         logger.debug(f"Не вдалось зробити скриншот: {e}")
         return None
 
-    offset_x, offset_y = (region[0], region[1]) if region else (0, 0)
+    offset = (region[0], region[1]) if region else (0, 0)
+    return find_green_button(shot, offset=offset, debug_path=debug_path)
 
-    try:
-        return _detect_green_button(cv2, np, shot, offset_x, offset_y, debug_path)
-    except Exception as e:
-        logger.debug(f"Помилка пошуку кнопки за кольором: {e}")
-        return None
-
-def _detect_green_button(cv2, np, shot, offset_x, offset_y, debug_path) -> Optional[Box]:
-    """Внутрішня реалізація пошуку зеленої кнопки на готовому скриншоті."""
-    rgb = np.array(shot.convert("RGB"))
+def _detect_green_button(cv2, np, image, offset_x, offset_y, debug_path) -> Optional[Box]:
+    """Внутрішня реалізація пошуку зеленої кнопки на готовому зображенні."""
+    rgb = np.array(image.convert("RGB"))
     hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
     sat, val = hsv[..., 1], hsv[..., 2]
 
@@ -269,5 +313,5 @@ if __name__ == "__main__":
 
     debug_file = Path(__file__).parent / "logs" / "accept_debug.png"
     debug_file.parent.mkdir(exist_ok=True)
-    print(f"  пошук за кольором: {find_green_button(test_region, debug_path=debug_file)}")
+    print(f"  пошук за кольором: {find_green_button_on_screen(test_region, debug_path=debug_file)}")
     print(f"Скриншот з розміткою: {debug_file}")

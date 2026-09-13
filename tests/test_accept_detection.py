@@ -90,27 +90,22 @@ def game_screen():
 
 
 @pytest.fixture
-def screen(monkeypatch):
-    """Підмінити скриншот екрана заданим зображенням."""
+def screen():
+    """Повертає обрізаний під регіон кадр — так, як його віддасть dota_window."""
 
-    def _install(img):
-        monkeypatch.setattr(
-            pag, "screenshot",
-            lambda region=None: img.crop((
-                region[0], region[1], region[0] + region[2], region[1] + region[3]
-            )) if region else img
-        )
+    def _crop(img):
+        x, y, w, h = REGION
+        return img.crop((x, y, x + w, y + h))
 
-    return _install
+    return _crop
 
 
 @pytest.mark.parametrize("builder", [new_dialog, gradient_dialog, old_dialog],
                          ids=["all_pick", "gradient", "old"])
 def test_green_button_found(screen, builder):
     img, expected = builder()
-    screen(img)
 
-    box = ir.find_green_button(REGION)
+    box = ir.find_green_button(screen(img), offset=REGION[:2])
 
     assert box is not None, "кнопку 'Прийняти' не знайдено"
     x, y, w, h = expected
@@ -118,13 +113,33 @@ def test_green_button_found(screen, builder):
     assert abs(box.width - w) <= 8 and abs(box.height - h) <= 8
 
 
+def test_find_template_locates_crop_in_frame():
+    """Новий пошук за шаблоном працює над зображеннями, не над екраном."""
+    frame, expected = new_dialog()
+    x, y, w, h = expected
+    needle = frame.crop((x, y, x + w, y + h))
+
+    box = ir.find_template(needle, frame, confidence=0.9)
+
+    assert box is not None
+    assert abs(box.left - x) <= 2 and abs(box.top - y) <= 2
+
+
+def test_find_template_returns_none_when_absent():
+    frame, _ = game_screen()
+    needle, expected = new_dialog()
+    x, y, w, h = expected
+
+    assert ir.find_template(needle.crop((x, y, x + w, y + h)), frame,
+                            confidence=0.9) is None
+
+
 @pytest.mark.parametrize("builder", [new_dialog, gradient_dialog, old_dialog],
                          ids=["all_pick", "gradient", "old"])
 def test_click_lands_on_button(screen, builder):
     img, expected = builder()
-    screen(img)
 
-    box = ir.find_green_button(REGION)
+    box = ir.find_green_button(screen(img), offset=REGION[:2])
     point = pag.center(box)
 
     x, y, w, h = expected
@@ -134,17 +149,15 @@ def test_click_lands_on_button(screen, builder):
 
 def test_no_false_positive_on_game_screen(screen):
     img, _ = game_screen()
-    screen(img)
 
-    assert ir.find_green_button(REGION) is None
+    assert ir.find_green_button(screen(img), offset=REGION[:2]) is None
 
 
 def test_button_inside_green_frame_is_not_skipped(screen):
     """Регресія: RETR_EXTERNAL пропускав кнопку всередині рамки вікна."""
     img, expected = new_dialog()
-    screen(img)
 
-    box = ir.find_green_button(REGION)
+    box = ir.find_green_button(screen(img), offset=REGION[:2])
 
     assert box is not None
     assert box.width == pytest.approx(expected[2], abs=8)
