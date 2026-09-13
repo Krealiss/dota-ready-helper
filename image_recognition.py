@@ -184,9 +184,16 @@ def click_center(box: Optional[Any], duration: float = 0.05) -> bool:
         return False
 
     x, y = pag.center(box)
-    with _gui_lock:
-        pag.moveTo(x, y, duration=duration)
-        pag.click()
+    try:
+        with _gui_lock:
+            pag.moveTo(x, y, duration=duration)
+            pag.click()
+    except pag.FailSafeException:
+        # Аварійна зупинка користувачем — не глушимо
+        raise
+    except Exception as e:
+        logger.error(f"Не вдалося клікнути ({x}, {y}): {e}")
+        return False
 
     time.sleep(CLICK_COOLDOWN)
     return True
@@ -211,11 +218,17 @@ def double_click_center(
         return False
 
     x, y = pag.center(box)
-    with _gui_lock:
-        pag.moveTo(x, y, duration=duration)
-        pag.click()
-        time.sleep(interval)
-        pag.click()
+    try:
+        with _gui_lock:
+            pag.moveTo(x, y, duration=duration)
+            pag.click()
+            time.sleep(interval)
+            pag.click()
+    except pag.FailSafeException:
+        raise
+    except Exception as e:
+        logger.error(f"Не вдалося клікнути ({x}, {y}): {e}")
+        return False
 
     time.sleep(CLICK_COOLDOWN)
     return True

@@ -9,6 +9,18 @@ from collections import defaultdict
 
 from logger import logger
 
+def _average_wait(sessions: List[Dict]) -> float:
+    """Середній час очікування по записах, де він відомий."""
+    waits = [
+        s["wait_time_seconds"] for s in sessions
+        if s.get("wait_time_seconds") is not None
+    ]
+    return sum(waits) / len(waits) if waits else 0.0
+
+def format_wait(value: Optional[float]) -> str:
+    """Відформатувати час очікування для звітів."""
+    return "—" if value is None else f"{value:.1f}"
+
 @dataclass
 class MatchSession:
     """Інформація про одну сесію пошуку матчу."""
@@ -98,25 +110,40 @@ class Statistics:
             logger.error(f"Помилка збереження сесії: {e}")
 
     def start_search(self):
-        """Зафіксувати початок пошуку матчу."""
+        """
+        Зафіксувати початок пошуку матчу.
+
+        Якщо пошук уже триває (наприклад, бот щойно підхопив пошук, запущений
+        вручну в Dota), попередня мітка часу зберігається.
+        """
+        if self.current_session.get("search_started_at"):
+            logger.debug("Статистика: пошук уже триває")
+            return
+
         self.current_session["search_started_at"] = datetime.now().isoformat()
         self._save_current_session()
         logger.debug("Статистика: початок пошуку")
 
     def match_accepted(self):
         """Зафіксувати прийняття матчу."""
-        if not self.current_session.get("search_started_at"):
-            logger.warning("Матч прийнято, але пошук не було розпочато")
-            return
-
         now = datetime.now()
-        search_started = datetime.fromisoformat(self.current_session["search_started_at"])
-        wait_time = (now - search_started).total_seconds()
+        search_started = self.current_session.get("search_started_at")
+
+        # Матч зараховуємо завжди; якщо початок пошуку невідомий (бот запущено
+        # вже під час пошуку), час очікування просто не враховуємо
+        if search_started:
+            wait_time = (now - datetime.fromisoformat(search_started)).total_seconds()
+        else:
+            wait_time = None
+            logger.warning(
+                "Матч прийнято, але початок пошуку невідомий — "
+                "час очікування не враховано"
+            )
 
         # Створити запис про матч
         match_record = {
             "timestamp": now.isoformat(),
-            "search_started": self.current_session["search_started_at"],
+            "search_started": search_started,
             "match_found": now.isoformat(),
             "accepted": True,
             "wait_time_seconds": wait_time,
@@ -142,7 +169,7 @@ class Statistics:
 
         daily = self.data["daily_stats"][today]
         daily["matches_accepted"] += 1
-        daily["total_wait_time"] += wait_time
+        daily["total_wait_time"] += wait_time or 0.0
         daily["sessions"].append(match_record)
 
         # Оновити поточну сесію
@@ -152,7 +179,10 @@ class Statistics:
         self._save_stats()
         self._save_current_session()
 
-        logger.info(f"Статистика: матч прийнято за {wait_time:.1f}с")
+        if wait_time is None:
+            logger.info("Статистика: матч прийнято")
+        else:
+            logger.info(f"Статистика: матч прийнято за {wait_time:.1f}с")
 
     def match_missed(self):
         """Зафіксувати пропущений матч."""
@@ -178,11 +208,8 @@ class Statistics:
         total_accepted = self.data["total_matches_accepted"]
         total_missed = self.data["total_matches_missed"]
 
-        # Середній час очікування
-        if self.data["sessions"]:
-            avg_wait = sum(s["wait_time_seconds"] for s in self.data["sessions"]) / len(self.data["sessions"])
-        else:
-            avg_wait = 0.0
+        # Середній час очікування (матчі без відомого початку пошуку не враховуються)
+        avg_wait = _average_wait(self.data["sessions"])
 
         # Статистика за сьогодні
         today = datetime.now().strftime("%Y-%m-%d")
@@ -211,7 +238,7 @@ class Statistics:
 
         for i in range(days):
             date = (today - timedelta(days=i)).strftime("%Y-%m-%d")
-            stats = self.data["daily_stats"].get(date, {
+            stored = self.data["daily_stats"].get(date, {
                 "date": date,
                 "matches_accepted": 0,
                 "matches_missed": 0,
@@ -219,11 +246,9 @@ class Statistics:
                 "sessions": []
             })
 
-            # Розрахувати середній час
-            if stats["sessions"]:
-                stats["average_wait_time"] = stats["total_wait_time"] / len(stats["sessions"])
-            else:
-                stats["average_wait_time"] = 0.0
+            # Копія, щоб не дописувати розрахункові поля у збережений JSON
+            stats = dict(stored)
+            stats["average_wait_time"] = _average_wait(stats["sessions"])
 
             result.append(stats)
 
@@ -267,7 +292,7 @@ class Statistics:
                     session["search_started"],
                     session["match_found"],
                     "Так" if session["accepted"] else "Ні",
-                    f"{session['wait_time_seconds']:.1f}",
+                    format_wait(session.get("wait_time_seconds")),
                     session["session_id"]
                 ])
 

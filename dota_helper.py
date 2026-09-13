@@ -150,7 +150,14 @@ class DotaHelper:
                 logger.info(f"Кнопку 'Прийняти' знайдено ({source})")
                 self._set_state(State.READY)
                 self._debounced_message("✅ Гра знайдена! Натискаю 'Прийняти'...")
-                click_center(accept)
+
+                if not click_center(accept):
+                    self.stats.match_missed()
+                    self._debounced_message(
+                        "⚠️ Не вдалося натиснути 'Прийняти'. Прийми матч вручну!"
+                    )
+                    return True
+
                 self.stats.match_accepted()
 
                 # Отримати статистику для повідомлення
@@ -182,6 +189,9 @@ class DotaHelper:
             if self.state != State.SEARCHING:
                 self._set_state(State.SEARCHING)
                 self._debounced_message("🔎 Пошук гри активний.")
+                # Пошук могли запустити вручну в Dota — без цього матч не
+                # потрапив би у статистику
+                self.stats.start_search()
             return True
 
         return False

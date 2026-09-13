@@ -6,7 +6,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional
 
-from stats_tracker import Statistics
+from stats_tracker import Statistics, format_wait
 from logger import logger
 
 class ReportExporter:
@@ -57,7 +57,7 @@ class ReportExporter:
                             session['search_started'],
                             session['match_found'],
                             'Так' if session['accepted'] else 'Ні',
-                            f"{session['wait_time_seconds']:.1f}",
+                            format_wait(session.get('wait_time_seconds')),
                             session['session_id']
                         ])
 
