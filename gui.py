@@ -11,6 +11,7 @@ from PyQt6.QtCore import QTimer, pyqtSignal, QThread
 from PyQt6.QtGui import QIcon, QAction
 
 from logger import logger
+from config import APP_VERSION
 from stats_tracker import Statistics
 
 class DotaHelperGUI(QMainWindow):
@@ -28,7 +29,7 @@ class DotaHelperGUI(QMainWindow):
 
     def init_ui(self):
         """Ініціалізувати інтерфейс."""
-        self.setWindowTitle("Dota Ready Helper v2.1")
+        self.setWindowTitle(f"Dota Ready Helper v{APP_VERSION}")
         self.setGeometry(100, 100, 600, 500)
 
         # Центральний віджет

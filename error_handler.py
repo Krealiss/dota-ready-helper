@@ -9,11 +9,12 @@ from typing import Optional
 import json
 
 from logger import logger
+from config import APP_VERSION
 
 class CrashReporter:
     """Клас для збору та відправки звітів про помилки."""
 
-    def __init__(self, app_version: str = "2.1"):
+    def __init__(self, app_version: str = APP_VERSION):
         self.app_version = app_version
         self.crash_dir = Path(__file__).parent / "crashes"
         self.crash_dir.mkdir(exist_ok=True)
@@ -191,6 +192,10 @@ class ErrorHandler:
     def __exit__(self, exc_type, exc_value, exc_traceback):
         if exc_type is None:
             return True
+
+        # Ctrl+C та sys.exit() мають завершувати програму, а не глушитися
+        if issubclass(exc_type, (KeyboardInterrupt, SystemExit)):
+            return False
 
         # Логувати помилку
         logger.error(

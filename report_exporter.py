@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Optional
 
 from stats_tracker import Statistics, format_wait
+from config import APP_VERSION
 from logger import logger
 
 class ReportExporter:
@@ -227,7 +228,7 @@ class ReportExporter:
     </table>
 
     <div class="footer">
-        <p>Dota Ready Helper v2.1</p>
+        <p>Dota Ready Helper v""" + APP_VERSION + """</p>
     </div>
 </body>
 </html>
@@ -288,10 +289,10 @@ class ReportExporter:
     Середній час:  {day.get('average_wait_time', 0):.1f}с
 """
 
-            text += """
+            text += f"""
 ═══════════════════════════════════════════════════════════
 
-Dota Ready Helper v2.1
+Dota Ready Helper v{APP_VERSION}
 """
 
             with open(output_path, 'w', encoding='utf-8') as f:

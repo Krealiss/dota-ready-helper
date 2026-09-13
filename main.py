@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Dota Ready Helper v2.0
+Dota Ready Helper
 Автоматичне прийняття матчів у Dota 2 з керуванням через Telegram.
 """
 import sys
@@ -8,7 +8,7 @@ import pyautogui as pag
 import keyboard
 
 from logger import logger
-from config import validate_config
+from config import validate_config, APP_VERSION
 from telegram_bot import TelegramBot
 from dota_helper import DotaHelper
 from error_handler import setup_exception_handler
@@ -40,7 +40,7 @@ def setup_hotkeys(helper: DotaHelper):
 def main():
     """Точка входу."""
     logger.info("=" * 50)
-    logger.info("Dota Ready Helper v2.0")
+    logger.info(f"Dota Ready Helper v{APP_VERSION}")
     logger.info("=" * 50)
 
     # Перевірка конфігурації

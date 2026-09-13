@@ -110,11 +110,14 @@ dota-ready-helper/
 ├── image_recognition.py # Image recognition
 ├── stats_tracker.py     # Statistics tracking
 ├── error_handler.py     # Error handling
-├── gui.py               # GUI interface
+├── report_exporter.py   # Report export (CSV/JSON/HTML/TXT)
+├── gui.py               # GUI interface (not wired into main.py yet)
 ├── .env.example         # Environment template
 ├── requirements.txt     # Dependencies
+├── requirements-dev.txt # Dependencies for running tests
+├── tests/               # Test suite
 └── assets/              # Reference images
-    ├── prinyat.png
+    ├── prinyat.png      # Accept button (add prinyat_*.png for more variants)
     ├── search_game.png
     ├── is_searching_game.png
     └── stop.png
@@ -122,8 +125,11 @@ dota-ready-helper/
 
 ### Building Executable
 
+Build files are not kept in the repository, so pass the options directly:
+
 ```bash
-pyinstaller build.spec
+pip install pyinstaller
+pyinstaller --onefile --windowed --add-data "assets;assets" main.py
 ```
 
 The executable will be in the `dist/` folder.
@@ -246,8 +252,11 @@ python image_recognition.py
 
 ### Збірка виконуваного файлу
 
+Файли збірки не зберігаються у репозиторії, тому передайте параметри напряму:
+
 ```bash
-pyinstaller build.spec
+pip install pyinstaller
+pyinstaller --onefile --windowed --add-data "assets;assets" main.py
 ```
 
 Виконуваний файл буде у папці `dist/`.

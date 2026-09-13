@@ -12,6 +12,31 @@ load_dotenv()
 BASE_DIR = Path(__file__).parent.absolute()
 ASSETS_DIR = BASE_DIR / "assets"
 
+# Версія програми — єдине джерело правди
+APP_VERSION = "2.1"
+
+def _env_float(name: str, default: float) -> float:
+    """Прочитати число з .env, не падаючи на некоректному значенні."""
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        print(f"⚠️ {name}={raw!r} — не число, використано {default}")
+        return default
+
+def _env_int(name: str, default: int) -> int:
+    """Прочитати ціле число з .env, не падаючи на некоректному значенні."""
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        print(f"⚠️ {name}={raw!r} — не ціле число, використано {default}")
+        return default
+
 # Telegram
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
@@ -28,24 +53,24 @@ IMG_ACCEPT_VARIANTS = sorted(ASSETS_DIR.glob("prinyat*.png"))
 
 # Параметри розпізнавання
 CONFIDENCE = {
-    "accept": float(os.getenv("CONFIDENCE_ACCEPT", "0.80")),
-    "searching": float(os.getenv("CONFIDENCE_SEARCHING", "0.70")),
-    "search_btn": float(os.getenv("CONFIDENCE_SEARCH_BTN", "0.70")),
-    "stop_btn": float(os.getenv("CONFIDENCE_STOP_BTN", "0.75")),
+    "accept": _env_float("CONFIDENCE_ACCEPT", 0.80),
+    "searching": _env_float("CONFIDENCE_SEARCHING", 0.70),
+    "search_btn": _env_float("CONFIDENCE_SEARCH_BTN", 0.70),
+    "stop_btn": _env_float("CONFIDENCE_STOP_BTN", 0.75),
 }
 
 # Таймінги
-SCAN_INTERVAL = float(os.getenv("SCAN_INTERVAL", "0.30"))
-CLICK_COOLDOWN = float(os.getenv("CLICK_COOLDOWN", "1.00"))
-MESSAGE_COOLDOWN = float(os.getenv("MESSAGE_COOLDOWN", "5.00"))
+SCAN_INTERVAL = _env_float("SCAN_INTERVAL", 0.30)
+CLICK_COOLDOWN = _env_float("CLICK_COOLDOWN", 1.00)
+MESSAGE_COOLDOWN = _env_float("MESSAGE_COOLDOWN", 5.00)
 
 # Регіон пошуку (None = весь екран)
 SEARCH_REGION: Optional[tuple] = None
 
 # Регіон пошуку кнопки "Прийняти" (центр екрана).
 # Вікно "Ваша гра готова" з деталями матчу вище за старе, тому регіон більший.
-ACCEPT_REGION_WIDTH = int(os.getenv("ACCEPT_REGION_WIDTH", "1000"))
-ACCEPT_REGION_HEIGHT = int(os.getenv("ACCEPT_REGION_HEIGHT", "600"))
+ACCEPT_REGION_WIDTH = _env_int("ACCEPT_REGION_WIDTH", 1000)
+ACCEPT_REGION_HEIGHT = _env_int("ACCEPT_REGION_HEIGHT", 600)
 
 # Резервний пошук кнопки за кольором, якщо жоден шаблон не збігся
 ACCEPT_COLOR_FALLBACK = os.getenv("ACCEPT_COLOR_FALLBACK", "1").strip().lower() in (
