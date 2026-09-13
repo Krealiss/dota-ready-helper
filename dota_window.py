@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 import pygetwindow as gw
+from PIL import Image, ImageGrab
 
 from logger import logger
 
@@ -24,6 +25,14 @@ class WindowInfo:
     width: int
     height: int
     title: str
+
+@dataclass(frozen=True)
+class RelRect:
+    """Прямокутник у частках клієнтської області вікна."""
+    x: float
+    y: float
+    w: float
+    h: float
 
 def _process_name(hwnd) -> Optional[str]:
     """Ім'я виконуваного файлу, якому належить вікно (None, якщо невідомо)."""
@@ -88,3 +97,33 @@ def is_usable(window: Optional[WindowInfo]) -> bool:
     if window.width <= 0 or window.height <= 0:
         return False
     return window.left > MINIMIZED_COORD and window.top > MINIMIZED_COORD
+
+def to_absolute(window: WindowInfo, rel: RelRect) -> tuple:
+    """Перевести частки вікна в екранні координати."""
+    return (
+        window.left + round(rel.x * window.width),
+        window.top + round(rel.y * window.height),
+        round(rel.w * window.width),
+        round(rel.h * window.height),
+    )
+
+def to_relative(window: WindowInfo, rect: tuple) -> RelRect:
+    """Перевести екранні координати в частки вікна."""
+    left, top, width, height = rect
+    return RelRect(
+        (left - window.left) / window.width,
+        (top - window.top) / window.height,
+        width / window.width,
+        height / window.height,
+    )
+
+def capture(window: WindowInfo) -> Image.Image:
+    """
+    Зняти вікно Dota.
+
+    ImageGrab з all_screens=True, бо pyautogui.screenshot не бачить
+    моніторів з від'ємними координатами.
+    """
+    bbox = (window.left, window.top,
+            window.left + window.width, window.top + window.height)
+    return ImageGrab.grab(bbox=bbox, all_screens=True).convert("RGB")
