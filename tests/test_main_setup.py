@@ -147,3 +147,21 @@ def test_resolution_change_rescales_calibration(wizard_calls, monkeypatch):
 
     assert result.window_size == (2560, 1440)
     assert wizard_calls["shown"] == 0
+
+
+def test_calibrate_flag_reopens_wizard_even_when_calibrated(wizard_calls, monkeypatch):
+    """--calibrate дозволяє повторно пройти майстер, навіть якщо все вже відкалібровано."""
+    store = cal.Calibration.load(wizard_calls["dir"])
+    store.window_size = (1920, 1080)
+    store.elements["search_btn"] = cal.Element("search_btn.png",
+                                               cal.RelRect(0.1, 0.1, 0.1, 0.1),
+                                               "manual", "2026-01-01T00:00:00")
+    store.save()
+    (wizard_calls["dir"] / "search_btn.png").write_bytes(b"")
+
+    monkeypatch.setattr(main.dota_window, "find_window",
+                        lambda: WindowInfo(0, 0, 1920, 1080, "Dota 2"))
+
+    main.ensure_calibrated(force_setup=True)
+
+    assert wizard_calls["shown"] == 1

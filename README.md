@@ -22,7 +22,7 @@
 - ⌨️ Hotkeys for quick control
 - 📊 Comprehensive event logging
 - 🔒 Secure token storage in `.env`
-- 🎯 Optimized search (grayscale, central region)
+- 🎯 Optimized search (grayscale, window-anchored regions)
 - 📈 Match statistics tracking
 
 ### Installation
@@ -105,26 +105,20 @@ All settings can be adjusted in `.env`:
 - `NO_GAME_POLL_INTERVAL` — pause between checks while Dota is not running (seconds)
 - `ACCEPT_COLOR_FALLBACK` — detect the green Accept button by color (`1`/`0`)
 
-### Accept Button Variants
+### Accept Button Detection
 
-Dota 2 shows several versions of the ready popup (plain button, or the full
-"Your game is ready / ALL PICK" panel with match quality details). The helper
-handles them in two ways:
+The "Accept" button needs no template to begin with: it is located by its
+color and shape, which is why it works out of the box in any client language
+or UI theme, on any version of the ready popup. The first time the bot
+actually catches a match, it crops that exact button out of the frame and
+saves it as your own template — every match after that is matched exactly
+instead of re-detected by color.
 
-1. **Templates** — every `assets/prinyat*.png` file is tried. To add a variant,
-   crop just the button from a screenshot and save it as e.g.
-   `assets/prinyat_allpick.png`.
-2. **Color fallback** — if no template matches, the green button is located by
-   its color and shape inside the center region. This works without any template.
-
-To check what the bot currently sees, open the ready popup and run:
-
-```bash
-python image_recognition.py
-```
-
-It prints the result of every detection method and saves an annotated screenshot
-to `logs/accept_debug.png`.
+To check what the bot currently sees, reopen the calibration wizard with
+`python main.py --calibrate`, go through (or skip) the capture steps to the
+summary screen, and press "Check now" ("Перевірити зараз"). It takes a fresh
+capture of the live Dota window and reports which elements — including
+"Accept", once it has been caught at least once — were found.
 
 ### Project Structure
 
@@ -148,7 +142,7 @@ dota-ready-helper/
 ├── requirements-dev.txt # Dependencies for running tests
 ├── tests/               # Test suite
 └── assets/              # Reference images
-    ├── prinyat.png      # Accept button (add prinyat_*.png for more variants)
+    ├── prinyat.png      # Accept button reference (setup wizard checks it exists)
     ├── search_game.png
     ├── is_searching_game.png
     └── stop.png
@@ -205,7 +199,7 @@ This tool is for educational purposes. Use at your own risk. The authors are not
 - ⌨️ Гарячі клавіші для швидкого керування
 - 📊 Логування всіх подій
 - 🔒 Безпечне зберігання токенів у `.env`
-- 🎯 Оптимізований пошук (grayscale, центральний регіон)
+- 🎯 Оптимізований пошук (grayscale, регіони прив'язані до вікна)
 - 📈 Відстеження статистики матчів
 
 ### Встановлення
@@ -288,26 +282,20 @@ python main.py --calibrate
 - `NO_GAME_POLL_INTERVAL` — пауза між перевірками, коли Dota не запущена (секунди)
 - `ACCEPT_COLOR_FALLBACK` — пошук зеленої кнопки за кольором (`1`/`0`)
 
-### Варіанти кнопки "Прийняти"
+### Розпізнавання кнопки "Прийняти"
 
-Dota 2 показує кілька версій вікна прийняття: просту кнопку або повну панель
-«Ваша гра готова / ALL PICK» з деталями якості матчу. Бот обробляє їх двома
-способами:
+Кнопці «Прийняти» шаблон спочатку не потрібен: вона шукається за кольором і
+формою, тому працює одразу в будь-якій мові клієнта чи темі оформлення, на
+будь-якій версії вікна прийняття. Коли бот вперше по-справжньому ловить матч,
+він вирізає саме цю кнопку з кадру і зберігає як твій власний шаблон — усі
+наступні матчі відтоді розпізнаються точним збігом, а не повторним пошуком за
+кольором.
 
-1. **Шаблони** — перебираються всі файли `assets/prinyat*.png`. Щоб додати новий
-   варіант, виріжте зі скриншота саму кнопку та збережіть, наприклад, як
-   `assets/prinyat_allpick.png`.
-2. **Пошук за кольором** — якщо жоден шаблон не збігся, зелена кнопка шукається
-   за кольором і формою в центральній області екрана. Працює без шаблону взагалі.
-
-Щоб перевірити, що саме бачить бот, відкрийте вікно прийняття та запустіть:
-
-```bash
-python image_recognition.py
-```
-
-Команда виведе результат кожного способу пошуку та збереже скриншот з розміткою
-у `logs/accept_debug.png`.
+Щоб перевірити, що саме бачить бот, відкрий майстер калібрування командою
+`python main.py --calibrate`, пройди (або пропусти) кроки знімання до
+зведення і натисни «Перевірити зараз». Він зробить свіжий знімок живого вікна
+Dota і покаже, які елементи — включно з «Прийняти», якщо вона вже була
+спіймана хоч раз — знайдено.
 
 ### Збірка виконуваного файлу
 
