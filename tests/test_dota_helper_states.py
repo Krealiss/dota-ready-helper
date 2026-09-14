@@ -99,6 +99,8 @@ def test_single_capture_per_tick(helper, monkeypatch):
     monkeypatch.setattr(dh.dota_window, "find_window", lambda: window)
     monkeypatch.setattr(dh.dota_window, "capture",
                         lambda w: captures.append(w) or frame)
+    # tick() має право клікнути — клік не повинен дійти до справжньої миші
+    monkeypatch.setattr(dh, "click_center", lambda box, **kw: True)
 
     helper.tick()
 
