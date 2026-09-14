@@ -88,7 +88,10 @@ def test_no_stray_files_in_bundle(tmp_path, store):
 
     # Додати випадковий файл у директорію калібрування
     stray = store.directory / "notes.txt"
-    stray.write_text("Це не повинно потрапити в архів")
+    # encoding обов'язковий: без нього write_text бере кодування системи, і на
+    # раннері з cp1252 українські літери валять тест, хоча локально з cp1251
+    # він проходить
+    stray.write_text("Це не повинно потрапити в архів", encoding="utf-8")
 
     bundle = diagnostics.build_bundle(tmp_path / "out", WINDOW, store, frame)
 
