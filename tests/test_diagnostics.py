@@ -150,13 +150,11 @@ def test_detection_covers_uncalibrated_elements(mixed_store):
     (mock_dota.render_menu, False),
     (mock_dota.render_ready_popup, True),
 ])
-def test_detect_elements_matches_dota_helper_locate(mixed_store, render, accept_visible):
+def test_detect_elements_matches_dota_helper_locate(mixed_store, make_helper,
+                                                    render, accept_visible):
     """Виявлення у діагностиці збігається з логікою DotaHelper.locate()."""
-    from dota_helper import DotaHelper
-    from telegram_bot import TelegramBot
-
     frame, _ = render()
-    helper = DotaHelper(TelegramBot(), calibration=mixed_store)
+    helper = make_helper(mixed_store)
 
     detection = diagnostics.detect_elements(WINDOW, frame, mixed_store)
 

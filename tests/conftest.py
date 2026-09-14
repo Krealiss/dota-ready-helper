@@ -30,3 +30,58 @@ def no_real_input(monkeypatch):
     monkeypatch.setattr(pag, "click",
                         lambda *args, **kwargs: calls.append(("click", args, kwargs)))
     return calls
+
+
+class FakeBot:
+    """Telegram-бот без Telegram: справжній конструює TeleBot з .env."""
+
+    def __init__(self):
+        self.messages = []
+        self.menus = []
+
+    def send_message(self, text):
+        self.messages.append(text)
+
+    def send_menu(self, state):
+        self.menus.append(state)
+
+
+class FakeStats:
+    """Статистика без диска: справжня пише в робочу теку stats/ репозиторію."""
+
+    def __init__(self):
+        self.accepted = 0
+
+    def start_search(self):
+        pass
+
+    def match_accepted(self):
+        self.accepted += 1
+
+    def match_missed(self):
+        pass
+
+    def get_summary(self):
+        return {"today_accepted": 0, "total_matches_accepted": 0}
+
+    def get_formatted_summary(self):
+        return ""
+
+
+@pytest.fixture
+def make_helper(monkeypatch):
+    """
+    Створити DotaHelper на фейкових боті та статистиці.
+
+    Жоден тест не повинен ані ходити в Telegram, ані писати в справжню
+    теку stats/ — зокрема тести діагностики, які раніше конструювали
+    і TelegramBot, і Statistics по-справжньому.
+    """
+    import dota_helper as dh
+
+    monkeypatch.setattr(dh, "Statistics", lambda *args, **kwargs: FakeStats())
+
+    def _make(calibration):
+        return dh.DotaHelper(FakeBot(), calibration=calibration)
+
+    return _make

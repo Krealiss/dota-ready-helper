@@ -12,43 +12,10 @@ from dota_window import WindowInfo, to_relative
 CONFIGS = [(1920, 1080), (2560, 1440), (1366, 768), (3440, 1440)]
 
 
-class FakeBot:
-    def __init__(self):
-        self.messages = []
-        self.menus = []
-
-    def send_message(self, text):
-        self.messages.append(text)
-
-    def send_menu(self, state):
-        self.menus.append(state)
-
-
 @pytest.fixture
-def helper(tmp_path, monkeypatch):
-    monkeypatch.setattr(dh, "Statistics", lambda *a, **kw: _FakeStats())
-    store = cal.Calibration.load(tmp_path / "calibration")
-    return dh.DotaHelper(FakeBot(), calibration=store)
-
-
-class _FakeStats:
-    def __init__(self):
-        self.accepted = 0
-
-    def start_search(self):
-        pass
-
-    def match_accepted(self):
-        self.accepted += 1
-
-    def match_missed(self):
-        pass
-
-    def get_summary(self):
-        return {"today_accepted": 0, "total_matches_accepted": 0}
-
-    def get_formatted_summary(self):
-        return ""
+def helper(tmp_path, make_helper):
+    """Бот і статистика — фейкові (conftest), калібрування — порожнє."""
+    return make_helper(cal.Calibration.load(tmp_path / "calibration"))
 
 
 def test_no_window_switches_to_no_game(helper, monkeypatch):

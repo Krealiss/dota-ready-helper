@@ -5,9 +5,15 @@ from PIL import Image, ImageDraw, ImageFont
 
 import pyautogui as pag
 import image_recognition as ir
+from dota_window import WindowInfo
 
 SCREEN = (1920, 1080)
-REGION = (460, 240, 1000, 600)  # get_center_region(1000, 600) для 1920x1080
+
+# Вікно Dota на весь екран: область пошуку "Прийняти" тепер рахується від
+# вікна (image_recognition.accept_region), а не від екрана — функції
+# get_center_region, на яку тут колись посилалися, більше не існує.
+WINDOW = WindowInfo(0, 0, SCREEN[0], SCREEN[1], "Dota 2")
+REGION = ir.accept_region(WINDOW)
 
 
 def _font(size, bold=True):
@@ -89,23 +95,12 @@ def game_screen():
     return img, None
 
 
-@pytest.fixture
-def screen():
-    """Повертає обрізаний під регіон кадр — так, як його віддасть dota_window."""
-
-    def _crop(img):
-        x, y, w, h = REGION
-        return img.crop((x, y, x + w, y + h))
-
-    return _crop
-
-
 @pytest.mark.parametrize("builder", [new_dialog, gradient_dialog, old_dialog],
                          ids=["all_pick", "gradient", "old"])
-def test_green_button_found(screen, builder):
+def test_green_button_found(builder):
     img, expected = builder()
 
-    box = ir.find_green_button(screen(img), offset=REGION[:2])
+    box = ir.find_accept_by_colour(WINDOW, img)
 
     assert box is not None, "кнопку 'Прийняти' не знайдено"
     x, y, w, h = expected
@@ -149,10 +144,10 @@ def test_find_template_accepts_path_needle(tmp_path):
 
 @pytest.mark.parametrize("builder", [new_dialog, gradient_dialog, old_dialog],
                          ids=["all_pick", "gradient", "old"])
-def test_click_lands_on_button(screen, builder):
+def test_click_lands_on_button(builder):
     img, expected = builder()
 
-    box = ir.find_green_button(screen(img), offset=REGION[:2])
+    box = ir.find_accept_by_colour(WINDOW, img)
     point = pag.center(box)
 
     x, y, w, h = expected
@@ -160,17 +155,28 @@ def test_click_lands_on_button(screen, builder):
     assert abs(point.y - (y + h // 2)) <= 2
 
 
-def test_no_false_positive_on_game_screen(screen):
+def test_no_false_positive_on_game_screen():
     img, _ = game_screen()
 
-    assert ir.find_green_button(screen(img), offset=REGION[:2]) is None
+    assert ir.find_accept_by_colour(WINDOW, img) is None
 
 
-def test_button_inside_green_frame_is_not_skipped(screen):
+def test_button_inside_green_frame_is_not_skipped():
     """Регресія: RETR_EXTERNAL пропускав кнопку всередині рамки вікна."""
     img, expected = new_dialog()
 
-    box = ir.find_green_button(screen(img), offset=REGION[:2])
+    box = ir.find_accept_by_colour(WINDOW, img)
 
     assert box is not None
     assert box.width == pytest.approx(expected[2], abs=8)
+
+
+def test_accept_region_excludes_the_find_match_button():
+    """
+    Властивість, яку ці тести зберігали ще з часів get_center_region:
+    кнопка пошуку гри внизу праворуч в область пошуку не потрапляє.
+    """
+    find_match = ir.Box(round(SCREEN[0] * 0.74), round(SCREEN[1] * 0.82), 330, 50)
+
+    assert ir.is_inside_accept_region(WINDOW, find_match) is False
+    assert REGION.top + REGION.height < find_match.top

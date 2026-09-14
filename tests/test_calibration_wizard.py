@@ -33,13 +33,20 @@ def test_finds_shipped_template_at_another_scale(tmp_path):
     assert abs(candidates[0].left - rects["search_btn"][0]) <= 10
 
 
-def test_no_candidates_on_noisy_menu(tmp_path):
+@pytest.mark.parametrize("confidence", [0.7, wiz.AUTO_DETECT_CONFIDENCE],
+                         ids=["default", "production"])
+def test_no_candidates_on_noisy_menu(tmp_path, confidence):
+    """
+    Перевіряти треба й на тому порозі, з яким майстер працює насправді:
+    AUTO_DETECT_CONFIDENCE = 0.45 значно нижчий за типове значення 0.7.
+    """
     small, small_rects = mock_dota.render_menu(1920, 1080)
     x, y, w, h = small_rects["search_btn"]
     template = tmp_path / "search_game.png"
     small.crop((x, y, x + w, y + h)).save(template)
 
-    assert wiz.detect_candidates(mock_dota.render_noisy_menu(), [template]) == []
+    assert wiz.detect_candidates(mock_dota.render_noisy_menu(), [template],
+                                 confidence=confidence) == []
 
 
 def test_candidates_are_deduplicated(tmp_path):
