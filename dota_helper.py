@@ -23,6 +23,12 @@ from error_handler import ErrorHandler
 # переходу і коротше за терпіння користувача.
 INTERFACE_MISS_LIMIT = 40
 
+# Скільки кадрів поспіль без попапа «Прийняти» означає, що матч уже не
+# приймається і зі стану READY час виходити. Не один кадр: попап може не
+# впізнатися на окремому знімку (анімація появи, курсор поверх кнопки), а
+# кожна зміна стану шле нове меню в Telegram.
+READY_EXIT_MISSES = 3
+
 class State(Enum):
     """Стани бота."""
     NO_GAME = "no_game"
@@ -52,6 +58,9 @@ class DotaHelper:
         self._miss_streak = 0
         self._interface_warned = False
         self._seen_element = False
+
+        # Кадрів поспіль без попапа «Прийняти»
+        self._accept_misses = 0
 
         # Статистика
         self.stats = Statistics()
@@ -308,11 +317,36 @@ class DotaHelper:
             )
             self.calibration.save()
 
+    def _leave_ready_when_popup_is_gone(self):
+        """
+        Вийти зі стану READY, коли попап «Прийняти» зник з екрана.
+
+        READY означає «матч приймається просто зараз». Вийти з нього можна
+        було лише впізнавши search_btn або searching — а в користувача з
+        пропущеним калібруванням немає жодного з них, тому стан лишався
+        READY до кінця сесії й наступний попап мовчки не натискався:
+        приймання працювало рівно один раз за запуск. Вихід зі стану не
+        повинен залежати від калібрування, бо саме ця залежність і була
+        помилкою.
+        """
+        if self.state is not State.READY:
+            return
+
+        self._accept_misses += 1
+        if self._accept_misses >= READY_EXIT_MISSES:
+            self._accept_misses = 0
+            self._set_state(State.IDLE)
+
     def check_accept_button(self, window, frame) -> bool:
         """Знайти кнопку 'Прийняти' у кадрі та натиснути її."""
         accept = self.locate("accept", window, frame)
         if not accept:
+            self._leave_ready_when_popup_is_gone()
             return False
+
+        # Попап на місці — поки він видно, стан READY лишається, і
+        # повторного кліку по тій самій кнопці не буде
+        self._accept_misses = 0
 
         if self.state is not State.READY:
             self._set_state(State.READY)
