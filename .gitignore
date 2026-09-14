@@ -53,6 +53,9 @@ crashes/
 
 # Stats and temporary data
 stats/
+
+# Калібрування — знімки з клієнта користувача, а не код
+calibration/
 exports/
 diagnostics/
 
