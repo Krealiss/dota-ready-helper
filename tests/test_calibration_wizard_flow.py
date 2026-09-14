@@ -301,3 +301,25 @@ def test_check_uses_the_same_confidence_as_the_bot(tmp_path, monkeypatch, make_d
     # Те саме, що знаходить бот, майстер має показати знайденим
     assert "search_btn: знайдено" in dialog.status.text()
     assert ir.locate_element(store, "search_btn", big, target) is not None
+
+
+@pytest.mark.parametrize("render,expected", [
+    (mock_dota.render_ready_popup, "accept: знайдено"),
+    (mock_dota.render_menu, "accept: НЕ знайдено"),
+])
+def test_check_reports_accept(tmp_path, monkeypatch, make_dialog, render, expected):
+    """
+    README обіцяє, що «Перевірити зараз» показує і «Прийняти», а це єдиний
+    документований спосіб побачити, що саме бачить бот. Шаблон для цього не
+    потрібен: кнопка шукається за кольором.
+    """
+    window = WindowInfo(0, 0, 1920, 1080, "Dota 2")
+    frame, *_ = render()
+    monkeypatch.setattr(wiz.dota_window, "find_window", lambda: window)
+    monkeypatch.setattr(wiz.dota_window, "capture", lambda w: frame)
+    monkeypatch.setattr(wiz.QDialog, "exec", lambda self: 0)
+
+    dialog = make_dialog(cal.Calibration.load(tmp_path / "calibration"))
+    dialog._run_check()
+
+    assert expected in dialog.status.text()

@@ -138,8 +138,9 @@ instead of re-detected by color.
 To check what the bot currently sees, reopen the calibration wizard with
 `python main.py --calibrate`, go through (or skip) the capture steps to the
 summary screen, and press "Check now" ("Перевірити зараз"). It takes a fresh
-capture of the live Dota window and reports which elements — including
-"Accept", once it has been caught at least once — were found.
+capture of the live Dota window and reports which elements were found —
+"Accept" included, whether or not it has ever been caught, because it is
+searched for by color and needs no template.
 
 ### Project Structure
 
@@ -335,8 +336,9 @@ python main.py --diagnose
 Щоб перевірити, що саме бачить бот, відкрий майстер калібрування командою
 `python main.py --calibrate`, пройди (або пропусти) кроки знімання до
 зведення і натисни «Перевірити зараз». Він зробить свіжий знімок живого вікна
-Dota і покаже, які елементи — включно з «Прийняти», якщо вона вже була
-спіймана хоч раз — знайдено.
+Dota і покаже, які елементи знайдено — включно з «Прийняти», незалежно від
+того, чи була вона хоч раз спіймана: ця кнопка шукається за кольором і
+шаблона не потребує.
 
 ### Збірка виконуваного файлу
 
