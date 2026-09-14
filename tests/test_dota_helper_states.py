@@ -353,21 +353,14 @@ def test_no_interface_warning_without_calibration(helper, monkeypatch):
     assert not any("інтерфейс" in m for m in helper.telegram_bot.messages)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Лічильник невдач мовчав під час матчу тому, що стан лишався "
-           "READY. Відколи READY правильно залишається зі зникненням попапа "
-           "(інакше з пропущеним калібруванням приймався лише один матч за "
-           "запуск), під час гри стан IDLE і попередження спрацьовує. Той "
-           "самий хибний спрацьовок, що й при перегляді Armory; винесено в "
-           "окреме завдання разом з порогом INTERFACE_MISS_LIMIT.",
-)
 def test_no_interface_warning_during_a_match(helper, monkeypatch):
     """
     Під час матчу жодного елемента меню на екрані немає — це не поламаний
     інтерфейс, і попередження «схоже, інтерфейс змінився» тут хибне.
 
-    Властивість лишається бажаною; тест фіксує її як борг, а не видалений.
+    Ruling 13: лічильник мовчить не тому, що стан READY (стан правильно
+    залишається разом зі зникненням попапа), а тому, що з моменту
+    прийнятого матчу минуло менше ACCEPT_SUPPRESSION_SECONDS.
     """
     window = WindowInfo(0, 0, 1920, 1080, "Dota 2")
     menu, rects = mock_dota.render_menu()
@@ -465,3 +458,40 @@ def test_leaving_ready_does_not_spam_the_telegram_menu(helper, monkeypatch):
 
     assert helper.state is dh.State.READY
     assert helper.telegram_bot.menus.count("ready") == 1
+
+
+def test_interface_warning_returns_after_the_suppression_window(helper, monkeypatch):
+    """
+    Ruling 13 не повинен глушити попередження назавжди: щойно вікно
+    тиші після матчу минуло, стійка невдача знову доповідається.
+
+    Годинник підкручується через записану мітку часу прийнятого матчу —
+    чекати 90 хвилин у тесті ніхто не буде.
+    """
+    window = WindowInfo(0, 0, 1920, 1080, "Dota 2")
+    menu, rects = mock_dota.render_menu()
+    _calibrate_search_btn(helper, window, menu, rects)
+    popup, _ = mock_dota.render_ready_popup()
+    frames = {"current": menu}
+    monkeypatch.setattr(dh.dota_window, "find_window", lambda: window)
+    monkeypatch.setattr(dh.dota_window, "capture", lambda w: frames["current"])
+    monkeypatch.setattr(dh, "click_center", lambda box, **kw: True)
+
+    helper.tick()                                   # меню: елемент упізнано
+    frames["current"] = popup
+    helper.tick()                                   # матч прийнято
+    assert helper._last_accept_time > 0
+
+    frames["current"] = mock_dota.render_noisy_menu()
+    for _ in range(dh.INTERFACE_MISS_LIMIT + 5):
+        helper.last_message_time.clear()
+        helper.tick()
+    assert not any("інтерфейс" in m for m in helper.telegram_bot.messages)
+
+    # Матч давно скінчився, а меню так і не збігається
+    helper._last_accept_time -= dh.ACCEPT_SUPPRESSION_SECONDS + 1
+    for _ in range(dh.INTERFACE_MISS_LIMIT + 5):
+        helper.last_message_time.clear()
+        helper.tick()
+
+    assert any("інтерфейс" in m for m in helper.telegram_bot.messages)
