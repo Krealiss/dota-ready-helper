@@ -1,10 +1,21 @@
 # -*- coding: utf-8 -*-
 """Автопідказка та перевірки майстра калібрування."""
+import os
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
 import pytest
 from PIL import Image
 
 import calibration_wizard as wiz
 import mock_dota
+
+
+@pytest.fixture
+def qt_app():
+    from PyQt6.QtWidgets import QApplication
+    app = QApplication.instance() or QApplication([])
+    yield app
 
 
 def test_finds_shipped_template_at_native_scale(tmp_path):
@@ -86,3 +97,29 @@ def test_is_blank_detects_black_capture(colour, expected):
 def test_menu_frame_is_not_blank():
     frame, _ = mock_dota.render_menu()
     assert wiz.is_blank(frame) is False
+
+
+def test_crop_label_maps_selection_back_to_frame(qt_app):
+    """Рамка малюється на зменшеному знімку, а координати потрібні справжні."""
+    from PyQt6.QtCore import QPoint
+
+    frame, _ = mock_dota.render_menu(1920, 1080)
+    label = wiz.CropLabel()
+    label.set_frame(frame, display_width=960)
+
+    label.begin_selection(QPoint(100, 200))
+    label.update_selection(QPoint(200, 250))
+    rect = label.finish_selection(QPoint(200, 250))
+
+    assert rect == (200, 400, 200, 100)
+
+
+def test_crop_label_rejects_tiny_selection(qt_app):
+    from PyQt6.QtCore import QPoint
+
+    frame, _ = mock_dota.render_menu(1920, 1080)
+    label = wiz.CropLabel()
+    label.set_frame(frame, display_width=960)
+
+    label.begin_selection(QPoint(100, 100))
+    assert label.finish_selection(QPoint(102, 101)) is None
