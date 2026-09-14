@@ -54,6 +54,7 @@ crashes/
 # Stats and temporary data
 stats/
 exports/
+diagnostics/
 
 # Tests
 .pytest_cache/

@@ -97,6 +97,19 @@ def run_diagnostics() -> None:
     """Зібрати діагностичний пакет і показати його користувачу."""
     import diagnostics
 
+    print("\n" + "=" * 50)
+    print("ДІАГНОСТИЧНИЙ ПАКЕТ")
+    print("=" * 50)
+    print("У архіві буде:")
+    print("  • Знімок гри (на ньому видно твій нік у Steam та список друзів)")
+    print("  • Інформація про систему")
+    print("  • Конфігурація вікна Dota")
+    print("  • Ваше калібрування")
+    print("  • Результати пошуку елементів")
+    print("\nТОКЕН БОТА НЕ ПОТРАПИТЬ В АРХІВ.")
+    print("Перевір вміст перед відправкою в issue.")
+    print("=" * 50 + "\n")
+
     window = dota_window.find_window()
     frame = dota_window.capture(window) if dota_window.is_usable(window) else None
     store = Calibration.load(config.CALIBRATION_DIR)
@@ -105,9 +118,7 @@ def run_diagnostics() -> None:
         Path(__file__).parent / "diagnostics", window, store, frame
     )
 
-    print(f"\nДіагностичний архів: {bundle}")
-    print("У ньому є знімок гри — на ньому видно твій нік у Steam.")
-    print("Токен бота в архів не потрапляє. Перевір вміст перед відправкою.")
+    print(f"✅ Архів збережено: {bundle}")
 
 def main():
     """Точка входу."""

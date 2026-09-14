@@ -6,11 +6,13 @@ import platform
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 
 from PIL import Image
 
-from config import APP_VERSION
+from config import APP_VERSION, CONFIDENCE, ACCEPT_COLOR_FALLBACK
+from calibration import SCALED_CONFIDENCE
+from image_recognition import find_template, find_green_button
 from logger import logger
 
 def _screens() -> dict:
@@ -26,7 +28,55 @@ def _screens() -> dict:
         logger.debug(f"Не вдалося опитати екрани: {e}")
         return {}
 
-def collect_report(window, calibration) -> dict:
+def detect_elements(window, frame, calibration) -> Dict[str, Optional[bool]]:
+    """
+    Перевірити, чи знаходяться відкалібровані елементи у поточному кадрі.
+
+    Повертає dict[ім'я → None (невідомо) | False (не знайдено) | True (знайдено)].
+    None означає, що не можна перевірити (немає вікна чи кадру).
+    """
+    result = {}
+
+    for name in calibration.elements.keys():
+        # Якщо немає вікна чи кадру, результат невідомий для кожного елемента
+        if window is None or frame is None:
+            result[name] = None
+            continue
+
+        # Перевірити за шаблоном, якщо элемент має джерело
+        if calibration.has(name):
+            region = calibration.search_region(name, window)
+            if region:
+                crop = frame.crop((
+                    region[0] - window.left, region[1] - window.top,
+                    region[0] - window.left + region[2],
+                    region[1] - window.top + region[3],
+                ))
+                element = calibration.element(name)
+                confidence = (
+                    SCALED_CONFIDENCE if element.source == "scaled"
+                    else CONFIDENCE.get(name, 0.8)
+                )
+                box = find_template(
+                    calibration.template_path(name), crop,
+                    confidence=confidence, offset=region[:2]
+                )
+                if box:
+                    result[name] = True
+                    continue
+
+        # Для "accept" спробувати пошук за кольором
+        if name == "accept" and ACCEPT_COLOR_FALLBACK:
+            found = find_green_button(frame, offset=(window.left, window.top))
+            result[name] = found is not None
+            continue
+
+        # Елемент не знайдений
+        result[name] = False
+
+    return result
+
+def collect_report(window, calibration, frame=None) -> dict:
     """Зібрати опис середовища. Жодних даних з .env."""
     return {
         "app_version": APP_VERSION,
@@ -48,6 +98,7 @@ def collect_report(window, calibration) -> dict:
                 for name, element in calibration.elements.items()
             },
         },
+        "detection": detect_elements(window, frame, calibration),
     }
 
 def build_bundle(out_dir: Path, window, calibration,
@@ -63,7 +114,7 @@ def build_bundle(out_dir: Path, window, calibration,
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     bundle = out_dir / f"diagnostics_{stamp}.zip"
-    report = collect_report(window, calibration)
+    report = collect_report(window, calibration, frame)
 
     with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("report.json",
