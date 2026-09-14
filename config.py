@@ -61,6 +61,11 @@ MESSAGE_COOLDOWN = _env_float("MESSAGE_COOLDOWN", 5.00)
 # Калібрування
 CALIBRATION_DIR = BASE_DIR / "calibration"
 
+# Куди бот складає кадри з вікном прийняття для корпусу реальних знімків.
+# Окрема константа, а не шлях від __file__: інакше тести пишуть у справжню
+# теку проєкту і підкладають синтетичний макет замість кадру користувача.
+CORPUS_DIR = BASE_DIR / "diagnostics" / "corpus"
+
 # Пауза між перевірками, коли Dota не запущена
 NO_GAME_POLL_INTERVAL = _env_float("NO_GAME_POLL_INTERVAL", 2.0)
 

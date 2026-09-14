@@ -5,6 +5,7 @@ from enum import Enum
 from pathlib import Path
 
 from logger import logger
+import config
 import dota_window
 from calibration import Calibration
 from config import (
@@ -348,7 +349,7 @@ class DotaHelper:
         не потрапляє в git — вирішує людина, що з нього публікувати.
         """
         with ErrorHandler("Збереження кадру для корпусу", silent=True):
-            target = (Path(__file__).parent / "diagnostics" / "corpus"
+            target = (config.CORPUS_DIR
                       / f"{window.width}x{window.height}_accept.png")
             if target.exists():
                 return

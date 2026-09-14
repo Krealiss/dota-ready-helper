@@ -32,6 +32,26 @@ def no_real_input(monkeypatch):
     return calls
 
 
+@pytest.fixture(autouse=True)
+def corpus_dir(tmp_path, monkeypatch):
+    """
+    Відвести теку корпусу в tmp на час кожного тесту.
+
+    Бот зберігає кадр з вікном прийняття у config.CORPUS_DIR, і будь-який
+    тест, що доганяє tick() до прийняття матчу, писав би туди синтетичний
+    макет. Це гірше за просто сміття в репозиторії: файл називається так
+    само, як справжній кадр користувача, лягає в ту саму теку — і через
+    перевірку «файл уже є» справжній кадр потім не зберігається взагалі.
+
+    Повертає шлях, щоб тест міг перевірити, що саме записано.
+    """
+    import config
+
+    target = tmp_path / "corpus"
+    monkeypatch.setattr(config, "CORPUS_DIR", target)
+    return target
+
+
 class FakeBot:
     """Telegram-бот без Telegram: справжній конструює TeleBot з .env."""
 
