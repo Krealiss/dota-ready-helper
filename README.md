@@ -61,6 +61,28 @@ python main.py --setup
 
 Without PyQt6 installed the same wizard runs in the console.
 
+### Calibration
+
+Right after the Telegram setup, a calibration wizard opens and walks you
+through capturing the search button, the "searching" indicator and the stop
+button from your own Dota client — so recognition works no matter your
+interface language, UI scale, or color theme. It appears automatically the
+first time no calibration exists yet.
+
+If your Dota window resolution changes later, the saved calibration is
+rescaled automatically in the background — you are not interrupted for it.
+
+Skipping the wizard (or closing it) is a supported choice: match accepting
+keeps working either way, because the Accept button is found by its color,
+not by a saved template. The only thing you lose by skipping is remote
+start/stop of the game search from Telegram.
+
+To reopen the wizard at any time:
+
+```bash
+python main.py --calibrate
+```
+
 ### Controls
 
 #### Telegram Commands
@@ -80,7 +102,7 @@ All settings can be adjusted in `.env`:
 - `CONFIDENCE_*` — recognition confidence thresholds (0.0-1.0)
 - `CLICK_COOLDOWN` — pause after click (seconds)
 - `MESSAGE_COOLDOWN` — minimum time between Telegram messages (seconds)
-- `ACCEPT_REGION_WIDTH` / `ACCEPT_REGION_HEIGHT` — search area around screen center
+- `NO_GAME_POLL_INTERVAL` — pause between checks while Dota is not running (seconds)
 - `ACCEPT_COLOR_FALLBACK` — detect the green Accept button by color (`1`/`0`)
 
 ### Accept Button Variants
@@ -118,6 +140,9 @@ dota-ready-helper/
 ├── error_handler.py     # Error handling
 ├── report_exporter.py   # Report export (CSV/JSON/HTML/TXT)
 ├── setup_dialog.py      # First-run setup wizard (writes .env)
+├── calibration.py       # Calibration storage and auto-detection logic
+├── calibration_wizard.py        # Pure detection helpers (no Qt)
+├── calibration_wizard_dialog.py # Calibration wizard UI (PyQt6)
 ├── .env.example         # Environment template
 ├── requirements.txt     # Dependencies
 ├── requirements-dev.txt # Dependencies for running tests
@@ -219,6 +244,28 @@ python main.py --setup
 
 Без встановленого PyQt6 той самий майстер працює у консолі.
 
+### Калібрування
+
+Одразу після налаштування Telegram відкривається майстер калібрування: він
+проведе через знімання кнопки пошуку, індикатора «йде пошук» і кнопки
+скасування з твого власного клієнта Dota — так розпізнавання працює
+незалежно від мови інтерфейсу, масштабу чи кольорової теми. Майстер
+з'являється автоматично, коли калібрування ще немає.
+
+Якщо потім зміниться розмір вікна Dota, збережене калібрування
+перераховується автоматично у фоні — це не переривує роботу програми.
+
+Пропустити майстер (або просто закрити його) — це підтримуваний варіант:
+приймання матчів працює в обох випадках, бо кнопка «Прийняти» шукається за
+кольором, а не за збереженим шаблоном. Пропуск вимикає лише дистанційний
+запуск і зупинку пошуку гри через Telegram.
+
+Щоб відкрити майстер знову в будь-який момент:
+
+```bash
+python main.py --calibrate
+```
+
 ### Керування
 
 #### Команди Telegram
@@ -238,7 +285,7 @@ python main.py --setup
 - `CONFIDENCE_*` — пороги впевненості розпізнавання (0.0-1.0)
 - `CLICK_COOLDOWN` — пауза після кліку (секунди)
 - `MESSAGE_COOLDOWN` — мінімальний час між Telegram повідомленнями (секунди)
-- `ACCEPT_REGION_WIDTH` / `ACCEPT_REGION_HEIGHT` — область пошуку навколо центра екрана
+- `NO_GAME_POLL_INTERVAL` — пауза між перевірками, коли Dota не запущена (секунди)
 - `ACCEPT_COLOR_FALLBACK` — пошук зеленої кнопки за кольором (`1`/`0`)
 
 ### Варіанти кнопки "Прийняти"

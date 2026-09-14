@@ -9,6 +9,8 @@ import pyautogui as pag
 import keyboard
 
 import config
+import dota_window
+from calibration import Calibration
 from logger import logger
 from config import APP_VERSION
 
@@ -62,6 +64,34 @@ def ensure_configured(force_setup: bool = False) -> bool:
     importlib.reload(config)
     return config.validate_config()
 
+def ensure_calibrated(force_setup: bool = False) -> Calibration:
+    """
+    Переконатися, що калібрування придатне, за потреби показавши майстер.
+
+    Returns:
+        Калібрування — можливо порожнє, якщо майстер пропущено
+    """
+    store = Calibration.load(config.CALIBRATION_DIR)
+    window = dota_window.find_window()
+
+    if not force_setup and not store.is_empty():
+        if window and store.is_stale(window):
+            logger.info("Розмір вікна змінився — перераховую калібрування")
+            store.scale_to(window)
+        return store
+
+    # Qt-залежний код завантажується лише тут, щоб не тягнути його при
+    # старті для користувачів, які майстра ніколи не побачать
+    from calibration_wizard_dialog import run_wizard
+
+    if not run_wizard(config.CALIBRATION_DIR):
+        logger.info(
+            "Калібрування пропущено: приймання матчів працює, "
+            "керування пошуком з Telegram — ні"
+        )
+
+    return Calibration.load(config.CALIBRATION_DIR)
+
 def main():
     """Точка входу."""
     logger.info("=" * 50)
@@ -75,6 +105,9 @@ def main():
         sys.exit(1)
 
     logger.info("✅ Конфігурація валідна")
+
+    # Перевірка калібрування (--calibrate відкриває майстер примусово)
+    calibration = ensure_calibrated(force_setup="--calibrate" in sys.argv)
 
     # Імпорт після налаштування: ці модулі читають значення з config при імпорті
     from telegram_bot import TelegramBot
@@ -91,7 +124,7 @@ def main():
     setup_exception_handler(telegram_bot)
 
     # Ініціалізація Dota Helper
-    helper = DotaHelper(telegram_bot)
+    helper = DotaHelper(telegram_bot, calibration=calibration)
 
     # Прив'язати callback'и
     telegram_bot.on_start_callback = lambda: setattr(helper, 'pending_start', True)
