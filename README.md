@@ -97,6 +97,13 @@ The bundle contains: system info, screen layout, Dota window rectangle,
 calibration sources, and a screenshot of your game. The Telegram bot token
 is never included. You can inspect the files before sending it to an issue.
 
+### Testing Matrix
+
+Before release, recognition is verified on real Dota clients across different
+configurations (resolution, language, UI scale, multi-monitor setup). See
+[`docs/testing-matrix.md`](docs/testing-matrix.md) for the full checklist and
+instructions on how to contribute screenshots to the test corpus.
+
 ### Controls
 
 #### Telegram Commands
@@ -284,8 +291,15 @@ python main.py --diagnose
 ```
 
 Архів містить: інформацію про систему, макет екранів, прямокутник вікна Dota,
-джерела калібрування й знімок гри. Токен Telegram бота в архів не потрапляє.
+джерела калібрування й знімок гри. Токен Telegram бота в архив не потрапляє.
 Ти можеш перевірити файли перед відправкою в issue.
+
+### Ручна матриця перевірки
+
+Перед релізом розпізнавання перевіряється на справжніх клієнтах Dota у
+різних конфігураціях (роздільна здатність, мова, масштаб UI, робота на
+другому моніторі). Див. [`docs/testing-matrix.md`](docs/testing-matrix.md) для
+повного чек-листа й інструкцій щодо додавання знімків до тестового корпусу.
 
 ### Керування
 
