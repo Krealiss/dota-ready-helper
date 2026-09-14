@@ -17,6 +17,12 @@ from stats_tracker import Statistics
 from report_exporter import ReportExporter
 from error_handler import ErrorHandler
 
+# Скільки ітерацій поспіль жоден відкалібрований елемент не впізнається,
+# перш ніж попередити про зміну інтерфейсу. При SCAN_INTERVAL = 0.3 c це
+# близько 12 секунд суцільної невдачі в меню — довше за будь-яку анімацію
+# переходу і коротше за терпіння користувача.
+INTERFACE_MISS_LIMIT = 40
+
 class State(Enum):
     """Стани бота."""
     NO_GAME = "no_game"
@@ -41,6 +47,11 @@ class DotaHelper:
         self.pending_export = False
 
         self.calibration = calibration or Calibration.load(CALIBRATION_DIR)
+
+        # Облік стійкої невдачі розпізнавання (спека §4)
+        self._miss_streak = 0
+        self._interface_warned = False
+        self._seen_element = False
 
         # Статистика
         self.stats = Statistics()
@@ -92,6 +103,17 @@ class DotaHelper:
             self._answer_pending_without_game()
             return NO_GAME_POLL_INTERVAL
 
+        if self.state is State.NO_GAME:
+            # NO_GAME означає «немає вікна», а не «нічого не впізнано».
+            # Вікно є — виходимо зі стану одразу: з порожнім калібруванням
+            # жоден елемент не впізнається, і бот лишався б у NO_GAME усю
+            # сесію, а меню Telegram — порожнім (спека §6: «калібрування
+            # пропущено → приймання працює, на «Запустити пошук» приходить
+            # «потрібне калібрування»»).
+            self._set_state(State.IDLE)
+
+        self._rescale_if_window_changed(window)
+
         frame = dota_window.capture(window)
 
         if self.pending_start:
@@ -108,13 +130,16 @@ class DotaHelper:
             return 1.0
 
         if self.locate("searching", window, frame):
+            self._note_recognition(True)
             if self.state is not State.SEARCHING:
                 self._set_state(State.SEARCHING)
                 self._debounced_message("🔎 Пошук гри активний.")
                 self.stats.start_search()
             return SCAN_INTERVAL
 
-        if self.locate("search_btn", window, frame):
+        search_button = self.locate("search_btn", window, frame)
+        self._note_recognition(bool(search_button))
+        if search_button:
             self._set_state(State.IDLE)
 
         return SCAN_INTERVAL
@@ -139,6 +164,68 @@ class DotaHelper:
         if self.pending_start or self.pending_stop:
             self.pending_start = self.pending_stop = False
             self._debounced_message("⚠️ Dota 2 не запущена.")
+
+    def _rescale_if_window_changed(self, window):
+        """
+        Перерахувати шаблони, якщо вікно тепер іншого розміру.
+
+        Звичайний порядок запуску — спершу помічник, потім Dota, тому на
+        старті вікна ще немає і main.ensure_calibrated цю перевірку
+        пропускає. Без перевірки в циклі шаблони лишалися б старого розміру
+        всю сесію: область пошуку масштабується разом з вікном, а пікселі
+        шаблона — ні, і відкалібровані елементи тихо перестають збігатися.
+
+        Ціна — порівняння двох чисел за ітерацію; перерахунок робиться лише
+        на зміну.
+        """
+        if not self.calibration.is_stale(window):
+            return
+
+        logger.info("Розмір вікна змінився — перераховую калібрування")
+        self.calibration.scale_to(window)
+
+        # Перерахованим шаблонам — чистий старт: попередні невдачі
+        # стосувалися шаблонів іншого розміру
+        self._miss_streak = 0
+        self._interface_warned = False
+
+    def _note_recognition(self, found: bool):
+        """
+        Порахувати невдачі розпізнавання поспіль і попередити про зміну
+        інтерфейсу (спека §4: одне повідомлення, без зупинки роботи).
+
+        Рахуємо тільки те, що справді мало б упізнатися: калібрування є,
+        хоч раз уже впізналося в цій сесії, і бот вважає, що зараз меню або
+        черга. У стані READY іде матч — там жодного елемента меню на екрані
+        немає, і рахувати це за поламаний інтерфейс не можна.
+        """
+        if found:
+            self._seen_element = True
+            self._miss_streak = 0
+            self._interface_warned = False
+            return
+
+        if self._interface_warned or not self._seen_element:
+            return
+        if self.state not in (State.IDLE, State.SEARCHING):
+            return
+        if not (self.calibration.has("search_btn") or self.calibration.has("searching")):
+            return
+
+        self._miss_streak += 1
+        if self._miss_streak < INTERFACE_MISS_LIMIT:
+            return
+
+        self._interface_warned = True
+        logger.warning(
+            f"{self._miss_streak} ітерацій поспіль без розпізнавання — "
+            "схоже, інтерфейс змінився"
+        )
+        self._debounced_message(
+            "⚠️ Схоже, інтерфейс Dota змінився — знайомі кнопки перестали "
+            "збігатися.\nЗапусти калібрування: `python main.py --calibrate`.\n"
+            "Приймання матчів тим часом працює."
+        )
 
     def _needs_calibration(self, name) -> bool:
         if self.calibration.has(name):

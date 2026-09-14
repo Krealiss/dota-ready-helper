@@ -286,3 +286,129 @@ def test_accept_is_not_relearned_when_already_calibrated(helper, monkeypatch):
     helper.tick()
 
     assert helper.calibration.element("accept").source == "manual"
+
+
+# --- Поведінка під час роботи: вікно з'явилось, змінилось, перестало збігатися --
+
+def _calibrate_search_btn(helper, window, frame, rects):
+    """Зняти search_btn з макета так само, як це зробив би майстер."""
+    x, y, w, h = rects["search_btn"]
+    helper.calibration.window_size = (window.width, window.height)
+    helper.calibration.add("search_btn", frame.crop((x, y, x + w, y + h)),
+                           to_relative(window, (x, y, w, h)), "manual")
+    return helper.calibration
+
+
+def test_window_alone_leaves_no_game(helper, monkeypatch):
+    """
+    NO_GAME означає «немає вікна». З порожнім калібруванням жоден елемент
+    не впізнається, тому стан лишався NO_GAME усю сесію, меню Telegram
+    приходило порожнім і кнопки «Запустити пошук» користувач не бачив
+    ніколи — разом з поясненням, що потрібне калібрування.
+    """
+    window = WindowInfo(0, 0, 1920, 1080, "Dota 2")
+    frame, _ = mock_dota.render_menu()
+    monkeypatch.setattr(dh.dota_window, "find_window", lambda: window)
+    monkeypatch.setattr(dh.dota_window, "capture", lambda w: frame)
+
+    helper.tick()
+
+    assert helper.state is dh.State.IDLE
+    assert "idle" in helper.telegram_bot.menus
+
+
+def test_window_of_another_size_is_rescaled_at_runtime(helper, monkeypatch):
+    """
+    Звичайний порядок запуску — спершу помічник, потім Dota, тому на старті
+    вікна немає і main.ensure_calibrated перевірку пропускає. Якщо Dota
+    відкриється іншого розміру, перерахувати шаблони має цикл.
+    """
+    small = WindowInfo(0, 0, 1920, 1080, "Dota 2")
+    big = WindowInfo(0, 0, 2560, 1440, "Dota 2")
+    menu, rects = mock_dota.render_menu(1920, 1080)
+    _calibrate_search_btn(helper, small, menu, rects)
+
+    target, _ = mock_dota.render_menu(2560, 1440)
+    monkeypatch.setattr(dh.dota_window, "find_window", lambda: big)
+    monkeypatch.setattr(dh.dota_window, "capture", lambda w: target)
+
+    helper.tick()
+
+    assert helper.calibration.window_size == (2560, 1440)
+    assert helper.calibration.element("search_btn").source == "scaled"
+    assert helper.locate("search_btn", big, target) is not None
+
+
+def test_persistent_mismatch_warns_once_and_keeps_working(helper, monkeypatch):
+    """
+    Спека §4: стійка невдача — одне повідомлення «схоже, інтерфейс
+    змінився», без зупинки роботи.
+    """
+    window = WindowInfo(0, 0, 1920, 1080, "Dota 2")
+    menu, rects = mock_dota.render_menu()
+    _calibrate_search_btn(helper, window, menu, rects)
+    frames = {"current": menu}
+    monkeypatch.setattr(dh.dota_window, "find_window", lambda: window)
+    monkeypatch.setattr(dh.dota_window, "capture", lambda w: frames["current"])
+
+    helper.tick()                                   # елемент упізнано
+    frames["current"] = mock_dota.render_noisy_menu()
+    for _ in range(dh.INTERFACE_MISS_LIMIT + 5):
+        helper.telegram_bot.messages.clear()        # обійти антиспам за текстом
+        helper.last_message_time.clear()
+        helper.tick()
+        if helper.telegram_bot.messages:
+            break
+
+    assert any("інтерфейс" in m for m in helper.telegram_bot.messages)
+
+    # Далі — тиша, поки щось знову не збігається
+    helper.telegram_bot.messages.clear()
+    helper.last_message_time.clear()
+    for _ in range(dh.INTERFACE_MISS_LIMIT + 5):
+        helper.tick()
+
+    assert not any("інтерфейс" in m for m in helper.telegram_bot.messages)
+    assert helper.running is True
+
+
+def test_no_interface_warning_without_calibration(helper, monkeypatch):
+    """Калібрування пропущено — не впізнається нічого, і це нормально."""
+    window = WindowInfo(0, 0, 1920, 1080, "Dota 2")
+    frame = mock_dota.render_noisy_menu()
+    monkeypatch.setattr(dh.dota_window, "find_window", lambda: window)
+    monkeypatch.setattr(dh.dota_window, "capture", lambda w: frame)
+
+    for _ in range(dh.INTERFACE_MISS_LIMIT + 5):
+        helper.last_message_time.clear()
+        helper.tick()
+
+    assert not any("інтерфейс" in m for m in helper.telegram_bot.messages)
+
+
+def test_no_interface_warning_during_a_match(helper, monkeypatch):
+    """
+    Під час матчу жодного елемента меню на екрані немає — це не поламаний
+    інтерфейс. Після прийняття матчу бот у стані READY, і саме там
+    лічильник невдач мовчить.
+    """
+    window = WindowInfo(0, 0, 1920, 1080, "Dota 2")
+    menu, rects = mock_dota.render_menu()
+    _calibrate_search_btn(helper, window, menu, rects)
+    popup, _ = mock_dota.render_ready_popup()
+    frames = {"current": menu}
+    monkeypatch.setattr(dh.dota_window, "find_window", lambda: window)
+    monkeypatch.setattr(dh.dota_window, "capture", lambda w: frames["current"])
+    monkeypatch.setattr(dh, "click_center", lambda box, **kw: True)
+
+    helper.tick()                                   # меню: елемент упізнано
+    frames["current"] = popup
+    helper.tick()                                   # матч знайдено → READY
+    assert helper.state is dh.State.READY
+
+    frames["current"] = mock_dota.render_noisy_menu()
+    for _ in range(dh.INTERFACE_MISS_LIMIT + 5):
+        helper.last_message_time.clear()
+        helper.tick()
+
+    assert not any("інтерфейс" in m for m in helper.telegram_bot.messages)
