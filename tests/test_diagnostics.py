@@ -9,7 +9,7 @@ from PIL import Image
 import calibration as cal
 import diagnostics
 import mock_dota
-from dota_window import RelRect, WindowInfo
+from dota_window import RelRect, WindowInfo, to_relative
 
 WINDOW = WindowInfo(-254, -1440, 1920, 1080, "Dota 2")
 SECRET = "123456789:AAsecret-token-value-that-must-never-leak"
@@ -108,25 +108,63 @@ def test_detect_elements_with_no_window(store):
         assert detection[name] is None
 
 
-def test_detect_elements_matches_dota_helper_locate(store):
+@pytest.fixture
+def mixed_store(tmp_path):
+    """
+    Калібрування, що зачіпає всі гілки пошуку.
+
+    search_btn — source "manual" (звичайний поріг), stop — та сама кнопка
+    під іншим ім'ям з source "scaled" (знижений поріг), accept навмисно
+    відсутній: його шукає пошук за кольором, і саме таке калібрування має
+    кожен, хто ще не спіймав жодного матчу.
+    """
+    frame, rects = mock_dota.render_menu()
+    store = cal.Calibration.load(tmp_path / "calibration")
+    store.window_size = (1920, 1080)
+
+    x, y, w, h = rects["search_btn"]
+    crop = frame.crop((x, y, x + w, y + h))
+    rel = to_relative(WINDOW, (WINDOW.left + x, WINDOW.top + y, w, h))
+    store.add("search_btn", crop, rel, "manual")
+    store.add("stop", crop, rel, "scaled")
+    store.save()
+    return store
+
+
+def test_detection_covers_uncalibrated_elements(mixed_store):
+    """
+    Баг-репорти пишуть саме ті, хто ще не спіймав матчу, — тобто без
+    елемента accept у калібруванні. Найкорисніший рядок пакета мовчки
+    пропускав його рівно для них.
+    """
+    frame, _ = mock_dota.render_ready_popup()
+
+    detection = diagnostics.detect_elements(WINDOW, frame, mixed_store)
+
+    assert set(detection) == set(cal.ELEMENTS)
+    assert detection["accept"] is True
+    assert detection["searching"] is False       # не відкалібровано і не видно
+
+
+@pytest.mark.parametrize("render,accept_visible", [
+    (mock_dota.render_menu, False),
+    (mock_dota.render_ready_popup, True),
+])
+def test_detect_elements_matches_dota_helper_locate(mixed_store, render, accept_visible):
     """Виявлення у діагностиці збігається з логікою DotaHelper.locate()."""
     from dota_helper import DotaHelper
     from telegram_bot import TelegramBot
 
-    frame, _ = mock_dota.render_menu()
-    helper = DotaHelper(TelegramBot(), calibration=store)
+    frame, _ = render()
+    helper = DotaHelper(TelegramBot(), calibration=mixed_store)
 
-    # Отримати результати діагностики
-    detection = diagnostics.detect_elements(WINDOW, frame, store)
+    detection = diagnostics.detect_elements(WINDOW, frame, mixed_store)
 
-    # Для кожного елемента перевірити, що результати збігаються
-    for name in store.elements.keys():
+    assert set(detection) == set(cal.ELEMENTS)
+    for name in cal.ELEMENTS:
         located = helper.locate(name, WINDOW, frame)
-        detected = detection[name]
+        assert detection[name] is bool(located), (
+            f"{name}: locate={located!r}, detect={detection[name]!r}"
+        )
 
-        # Якщо locate() знайшов (box is not None), то detected має бути True
-        if located:
-            assert detected is True, f"{name}: locate found but detect said {detected}"
-        # Якщо locate() не знайшов (box is None), то detected має бути False
-        else:
-            assert detected is False, f"{name}: locate not found but detect said {detected}"
+    assert detection["accept"] is accept_visible

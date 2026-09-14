@@ -10,6 +10,7 @@ from typing import Optional, Dict
 
 from PIL import Image
 
+from calibration import ELEMENTS
 from config import APP_VERSION
 from image_recognition import locate_element
 from logger import logger
@@ -29,14 +30,19 @@ def _screens() -> dict:
 
 def detect_elements(window, frame, calibration) -> Dict[str, Optional[bool]]:
     """
-    Перевірити, чи знаходяться відкалібровані елементи у поточному кадрі.
+    Перевірити, чи знаходяться елементи інтерфейсу у поточному кадрі.
+
+    Перебирається calibration.ELEMENTS, а не ключі калібрування: accept у
+    тих ключах відсутній, доки користувач не спіймав жодного матчу, — тобто
+    саме в того, хто пише баг-репорт. Бот тим часом шукає його завжди, за
+    кольором, і найкорисніший рядок пакета мовчки розходився з дійсністю.
 
     Повертає dict[ім'я → None (невідомо) | False (не знайдено) | True (знайдено)].
     None означає, що не можна перевірити (немає вікна чи кадру).
     """
     result = {}
 
-    for name in calibration.elements.keys():
+    for name in ELEMENTS:
         # Якщо немає вікна чи кадру, результат невідомий для кожного елемента
         if window is None or frame is None:
             result[name] = None
