@@ -24,6 +24,11 @@ from error_handler import ErrorHandler
 # переходу і коротше за терпіння користувача.
 INTERFACE_MISS_LIMIT = 40
 
+# Скільки ітерацій новий розмір вікна має протриматися, перш ніж перераховувати
+# калібрування. При SCAN_INTERVAL = 0.3 c це близько секунди — довше за
+# перетягування вікна між моніторами й непомітно для користувача.
+RESCALE_STABLE_TICKS = 4
+
 # Скільки кадрів поспіль без попапа «Прийняти» означає, що матч уже не
 # приймається і зі стану READY час виходити. Не один кадр: попап може не
 # впізнатися на окремому знімку (анімація появи, курсор поверх кнопки), а
@@ -68,6 +73,12 @@ class DotaHelper:
         self._miss_streak = 0
         self._interface_warned = False
         self._seen_element = False
+
+        # Розмір вікна, який чекає на підтвердження, і скільки ітерацій він
+        # уже тримається — щоб не перераховувати калібрування на кожен
+        # проміжний розмір, поки вікно тягнуть
+        self._pending_size = None
+        self._stable_ticks = 0
 
         # Кадрів поспіль без попапа «Прийняти»
         self._accept_misses = 0
@@ -201,8 +212,24 @@ class DotaHelper:
         на зміну.
         """
         if not self.calibration.is_stale(window):
+            self._pending_size = None
             return
 
+        # Поки вікно тягнуть на інший монітор, його розмір змінюється щокадру:
+        # на живій машині за 25 секунд проїхало 3200x1800, 2400x1350, 3200x1800
+        # і 3223x1859. Чекаємо, поки розмір устоїться, інакше перераховуємо
+        # калібрування під кожен проміжний стан.
+        size = (window.width, window.height)
+        if size != self._pending_size:
+            self._pending_size = size
+            self._stable_ticks = 1
+            return
+
+        self._stable_ticks += 1
+        if self._stable_ticks < RESCALE_STABLE_TICKS:
+            return
+
+        self._pending_size = None
         logger.info("Розмір вікна змінився — перераховую калібрування")
         self.calibration.scale_to(window)
 

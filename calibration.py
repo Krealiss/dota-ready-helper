@@ -30,6 +30,10 @@ class Element:
     rect: RelRect
     source: str
     captured_at: str
+    # Розмір вікна на момент знімання: масштабування рахується від нього,
+    # а не від поточного window_size, бо accept знімається в бою й може
+    # бути знятий за іншого розміру вікна, ніж решта
+    window: Optional[Tuple[int, int]] = None
 
 class Calibration:
     """Зберігає шаблони кнопок, зняті з клієнта користувача."""
@@ -40,6 +44,11 @@ class Calibration:
         self.directory = Path(directory)
         self.window_size = window_size
         self.elements: Dict[str, Element] = elements or {}
+
+    @property
+    def originals_dir(self) -> Path:
+        """Незмінні знімки з клієнта — джерело для всіх масштабувань."""
+        return self.directory / "originals"
 
     @property
     def _index_file(self) -> Path:
@@ -76,6 +85,7 @@ class Calibration:
                              rect.get("w", 0.0), rect.get("h", 0.0)),
                 source=raw.get("source", "manual"),
                 captured_at=raw.get("captured_at", ""),
+                window=tuple(raw["window"]) if raw.get("window") else None,
             )
 
         size = (window.get("width"), window.get("height"))
@@ -96,6 +106,7 @@ class Calibration:
                              "w": element.rect.w, "h": element.rect.h},
                     "source": element.source,
                     "captured_at": element.captured_at,
+                    "window": list(element.window) if element.window else None,
                 }
                 for name, element in self.elements.items()
             },
@@ -107,14 +118,18 @@ class Calibration:
     def add(self, name: str, image: Image.Image, rect: RelRect, source: str) -> None:
         """Зберегти шаблон елемента та його місце у вікні."""
         self.directory.mkdir(parents=True, exist_ok=True)
+        self.originals_dir.mkdir(parents=True, exist_ok=True)
         file_name = f"{name}.png"
         image.save(self.directory / file_name)
+        # Копія, якої не торкається жодне масштабування
+        image.save(self.originals_dir / file_name)
 
         self.elements[name] = Element(
             file=file_name,
             rect=rect,
             source=source,
             captured_at=datetime.now().isoformat(timespec="seconds"),
+            window=tuple(self.window_size) if self.window_size else None,
         )
         logger.info(f"Калібрування: {name} збережено ({source})")
 
@@ -137,31 +152,48 @@ class Calibration:
             return False
         return tuple(self.window_size) != (window.width, window.height)
 
+    def original_path(self, name: str) -> Path:
+        """Незмінний знімок елемента, з якого рахуються всі масштабування."""
+        element = self.elements.get(name)
+        return self.originals_dir / (element.file if element else f"{name}.png")
+
     def scale_to(self, window: WindowInfo) -> None:
-        """Перерахувати шаблони під новий розмір вікна."""
+        """
+        Перерахувати шаблони під новий розмір вікна.
+
+        Рахуємо завжди від оригіналу, знятого з клієнта, а не від попереднього
+        результату. Інакше кожна зміна розміру накладає ще одну передискретизацію
+        на вже розмиту картинку: на живій машині вікно, яке перетягують на інший
+        монітор, дало ланцюг 1920x1080 -> 3200x1800 -> 2400x1350 -> 3200x1800 і
+        за півхвилини знищило робоче калібрування.
+        """
         if not self.window_size:
             return
 
-        # Інтерфейс Dota масштабується за висотою вікна і зберігає пропорції
-        # елементів — окремі коефіцієнти для ширини й висоти спотворювали б
-        # шаблон на будь-якому співвідношенні сторін, відмінному від того,
-        # на якому знято калібрування (напр. 21:9 проти 16:9).
-        factor = window.height / self.window_size[1]
-
         for name, element in self.elements.items():
-            path = self.directory / element.file
-            if not path.exists():
+            source_path = self.original_path(name)
+            if not source_path.exists():
+                # Калібрування, зняте до появи originals/: іншого джерела немає
+                source_path = self.directory / element.file
+            if not source_path.exists():
                 continue
 
-            with Image.open(path) as image:
+            # Інтерфейс Dota масштабується за висотою вікна і зберігає пропорції
+            # елементів — окремі коефіцієнти для ширини й висоти спотворювали б
+            # шаблон на будь-якому співвідношенні сторін, відмінному від того,
+            # на якому знято калібрування (напр. 21:9 проти 16:9).
+            captured_height = (element.window or self.window_size)[1]
+            factor = window.height / captured_height
+
+            with Image.open(source_path) as image:
                 resized = image.resize(
                     (max(1, round(image.width * factor)),
                      max(1, round(image.height * factor))),
                     Image.LANCZOS
                 )
-                resized.save(path)
+                resized.save(self.directory / element.file)
 
-            element.source = "scaled"
+            element.source = element.source if factor == 1 else "scaled"
 
         self.window_size = (window.width, window.height)
         self.save()

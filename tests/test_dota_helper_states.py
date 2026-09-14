@@ -299,7 +299,9 @@ def test_window_of_another_size_is_rescaled_at_runtime(helper, monkeypatch):
     monkeypatch.setattr(dh.dota_window, "find_window", lambda: big)
     monkeypatch.setattr(dh.dota_window, "capture", lambda w: target)
 
-    helper.tick()
+    # Новий розмір має протриматися кілька ітерацій — див. тест нижче
+    for _ in range(dh.RESCALE_STABLE_TICKS):
+        helper.tick()
 
     assert helper.calibration.window_size == (2560, 1440)
     assert helper.calibration.element("search_btn").source == "scaled"
@@ -533,3 +535,75 @@ def test_corpus_frame_is_saved_once_per_window_size(helper, monkeypatch, corpus_
         helper.tick()
 
     assert len(list(corpus_dir.glob("*.png"))) == 1
+
+
+# --- Зміна розміру вікна не повинна псувати шаблони ----------------------------
+
+def test_transient_window_sizes_do_not_trigger_rescale(helper, monkeypatch):
+    """
+    Поки вікно тягнуть на інший монітор, розмір змінюється щокадру. На живій
+    машині за 25 секунд проїхало 3200x1800, 2400x1350, 3200x1800, 3223x1859 —
+    і кожен проміжний стан перераховував калібрування.
+    """
+    small = WindowInfo(0, 0, 1920, 1080, "Dota 2")
+    menu, rects = mock_dota.render_menu(1920, 1080)
+    _calibrate_search_btn(helper, small, menu, rects)
+
+    sizes = iter([(3200, 1800), (2400, 1350), (3200, 1800), (3223, 1859)])
+    monkeypatch.setattr(dh.dota_window, "find_window",
+                        lambda: WindowInfo(0, 0, *next(sizes), "Dota 2"))
+    monkeypatch.setattr(dh.dota_window, "capture", lambda w: menu)
+
+    for _ in range(4):
+        helper.tick()
+
+    assert helper.calibration.window_size == (1920, 1080),         "калібрування перераховано під розмір, який навіть не встояв"
+
+
+def test_repeated_rescales_do_not_degrade_the_template(helper, monkeypatch, tmp_path):
+    """
+    Ключове: кожне масштабування рахується від оригіналу, а не від попереднього
+    результату. Інакше ланцюг змін розміру накладає передискретизацію на вже
+    розмиту картинку, і шаблон перестає збігатися — саме так помічник втратив
+    робоче калібрування під час ручного прогону на другому моніторі.
+    """
+    from PIL import Image, ImageChops
+
+    small = WindowInfo(0, 0, 1920, 1080, "Dota 2")
+    menu, rects = mock_dota.render_menu(1920, 1080)
+    _calibrate_search_btn(helper, small, menu, rects)
+
+    # Довгий ланцюг: туди, назад і ще раз туди
+    for size in [(3200, 1800), (2400, 1350), (3200, 1800), (2560, 1440)]:
+        helper.calibration.scale_to(WindowInfo(0, 0, *size, "Dota 2"))
+    chained = Image.open(helper.calibration.template_path("search_btn")).convert("RGB")
+
+    # Те саме калібрування, масштабоване один раз одразу в кінцевий розмір
+    direct_store = cal.Calibration.load(tmp_path / "direct")
+    direct_store.window_size = (1920, 1080)
+    x, y, w, h = rects["search_btn"]
+    direct_store.add("search_btn", menu.crop((x, y, x + w, y + h)),
+                     to_relative(small, (x, y, w, h)), "manual")
+    direct_store.scale_to(WindowInfo(0, 0, 2560, 1440, "Dota 2"))
+    direct = Image.open(direct_store.template_path("search_btn")).convert("RGB")
+
+    assert chained.size == direct.size
+    assert ImageChops.difference(chained, direct).getbbox() is None,         "ланцюг масштабувань дав інший шаблон, ніж одне пряме — накопичується розмиття"
+
+
+def test_rescaled_template_still_matches_after_a_chain(helper, monkeypatch):
+    """Після довгого ланцюга змін розміру кнопка все ще знаходиться."""
+    small = WindowInfo(0, 0, 1920, 1080, "Dota 2")
+    menu, rects = mock_dota.render_menu(1920, 1080)
+    _calibrate_search_btn(helper, small, menu, rects)
+
+    for size in [(3200, 1800), (2400, 1350), (3200, 1800)]:
+        helper.calibration.scale_to(WindowInfo(0, 0, *size, "Dota 2"))
+
+    big = WindowInfo(0, 0, 2560, 1440, "Dota 2")
+    helper.calibration.scale_to(big)
+    target, target_rects = mock_dota.render_menu(2560, 1440)
+
+    found = helper.locate("search_btn", big, target)
+    assert found is not None, "шаблон не пережив ланцюг масштабувань"
+    assert abs(found.left - target_rects["search_btn"][0]) <= 8

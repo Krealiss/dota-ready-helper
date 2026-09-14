@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Система логування для Dota Ready Helper."""
 import logging
+import os
 import sys
 from pathlib import Path
 from datetime import datetime
@@ -31,7 +32,11 @@ def setup_logger(name: str = "DotaHelper", log_to_file: bool = True) -> logging.
 
     # Файловий вивід
     if log_to_file:
-        log_dir = Path(__file__).parent / "logs"
+        # Теку можна перенаправити: інакше тести пишуть свої трейсбеки і
+        # фейкові події у бойовий лог користувача, і розбирати за ним
+        # справжній прогон стає неможливо
+        log_dir = Path(os.getenv("DOTA_HELPER_LOG_DIR")
+                       or Path(__file__).parent / "logs")
         log_dir.mkdir(exist_ok=True)
 
         log_file = log_dir / f"dota_helper_{datetime.now().strftime('%Y%m%d')}.log"

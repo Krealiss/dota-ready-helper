@@ -1,12 +1,22 @@
 # -*- coding: utf-8 -*-
 """Спільні налаштування тестів."""
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
 
 # Модулі проєкту лежать у корені репозиторію
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# Логи тестів — у tmp, і виставити це треба до першого імпорту logger:
+# інакше трейсбеки з тестів обробки помилок і фейкові події лягають у
+# logs/dota_helper_<дата>.log поруч зі справжніми і псують діагностику
+os.environ.setdefault(
+    "DOTA_HELPER_LOG_DIR",
+    tempfile.mkdtemp(prefix="dota_helper_test_logs_")
+)
 
 import pyautogui as pag
 
