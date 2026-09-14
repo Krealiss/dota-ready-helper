@@ -40,11 +40,8 @@ def _env_int(name: str, default: int) -> int:
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
-# Шляхи до зображень
-IMG_SEARCHING = ASSETS_DIR / "is_searching_game.png"
-IMG_SEARCH_BTN = ASSETS_DIR / "search_game.png"
-IMG_ACCEPT = ASSETS_DIR / "prinyat.png"
-IMG_STOP = ASSETS_DIR / "stop.png"
+# Імена готових PNG тут навмисно не дублюються: вони потрібні лише майстру
+# як підказка для автопошуку, і єдине їх місце — calibration_wizard.SHIPPED.
 
 # Параметри розпізнавання. Ключ відповідає імені елемента калібрування
 # (calibration.ELEMENTS); "stop_btn" перейменовано на "stop", але змінна
@@ -77,23 +74,21 @@ def credentials_present() -> bool:
     return bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)
 
 def validate_config() -> bool:
-    """Перевірити, чи всі необхідні налаштування присутні."""
+    """
+    Перевірити, чи всі необхідні налаштування присутні.
+
+    Готові PNG у assets/ тут не перевіряються: після переходу на
+    калібрування вони лише підказка всередині майстра, а
+    calibration_wizard.shipped_templates() і так спокійно пропускає
+    відсутні файли. Вимагати їх для старту означало б не запустити
+    програму через відсутню підказку — і зламати збірку .exe без assets/
+    ще до коду, здатного пояснити причину.
+    """
     if not TELEGRAM_BOT_TOKEN:
         print("❌ TELEGRAM_BOT_TOKEN не встановлено у .env")
         return False
     if not TELEGRAM_CHAT_ID:
         print("❌ TELEGRAM_CHAT_ID не встановлено у .env")
         return False
-
-    # Перевірка наявності зображень
-    for img_name, img_path in [
-        ("is_searching_game.png", IMG_SEARCHING),
-        ("search_game.png", IMG_SEARCH_BTN),
-        ("prinyat.png", IMG_ACCEPT),
-        ("stop.png", IMG_STOP),
-    ]:
-        if not img_path.exists():
-            print(f"❌ Зображення не знайдено: {img_path}")
-            return False
 
     return True

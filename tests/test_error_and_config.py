@@ -76,6 +76,34 @@ def test_env_int_falls_back_to_default(monkeypatch, raw, expected):
     assert config._env_int("ACCEPT_REGION_WIDTH", 1000) == expected
 
 
+SHIPPED_PATH_NAMES = ("IMG_SEARCHING", "IMG_SEARCH_BTN", "IMG_ACCEPT", "IMG_STOP")
+
+
+def test_validate_config_does_not_depend_on_shipped_assets(monkeypatch, tmp_path):
+    """
+    Готові PNG — лише підказка всередині майстра (спека §3). Відсутній файл
+    підказки не має бути приводом не запуститися; для збірки .exe без
+    assets/ це взагалі означало б падіння до будь-якого коду, здатного
+    пояснити причину.
+    """
+    monkeypatch.setattr(config, "TELEGRAM_BOT_TOKEN", "123:AA")
+    monkeypatch.setattr(config, "TELEGRAM_CHAT_ID", "42")
+    for name in SHIPPED_PATH_NAMES:
+        monkeypatch.setattr(config, name, tmp_path / "missing.png", raising=False)
+
+    assert config.validate_config() is True
+
+
+def test_shipped_filenames_live_only_in_the_wizard():
+    """Ruling 1: calibration_wizard.SHIPPED — єдине джерело цих імен."""
+    import calibration_wizard
+
+    for name in SHIPPED_PATH_NAMES:
+        assert not hasattr(config, name), f"config.{name} — друга копія імені файла"
+
+    assert calibration_wizard.SHIPPED
+
+
 def test_config_imports_with_broken_env(monkeypatch):
     """Регресія: некоректне число у .env валило імпорт config до валідації."""
     monkeypatch.setenv("CONFIDENCE_ACCEPT", "дуже впевнено")

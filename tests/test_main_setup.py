@@ -74,7 +74,10 @@ def test_setup_flag_opens_wizard_even_when_configured(monkeypatch, wizard):
 
 
 def test_wizard_not_shown_for_problems_it_cannot_fix(monkeypatch, wizard):
-    """Дані Telegram на місці, але бракує зображень — майстер тут не допоможе."""
+    """
+    Дані Telegram на місці, а конфігурація все одно не пройшла перевірку —
+    майстер уміє полагодити лише токен і chat ID, тому не відкривається.
+    """
     set_config(monkeypatch, valid=False, credentials=True)
 
     assert main.ensure_configured() is False

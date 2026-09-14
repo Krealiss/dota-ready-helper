@@ -164,7 +164,7 @@ dota-ready-helper/
 ├── requirements-dev.txt # Dependencies for running tests
 ├── tests/               # Test suite
 └── assets/              # Reference images
-    ├── prinyat.png      # Accept button reference (setup wizard checks it exists)
+    ├── prinyat.png      # Accept button reference (a hint for the calibration wizard)
     ├── search_game.png
     ├── is_searching_game.png
     └── stop.png
