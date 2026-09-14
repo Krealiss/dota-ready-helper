@@ -16,9 +16,8 @@ from calibration import Calibration
 from calibration_wizard import (
     AUTO_DETECT_CONFIDENCE, detect_candidates, is_blank, shipped_templates
 )
-from config import CONFIDENCE
 from dota_window import WindowInfo
-from image_recognition import Box, find_template
+from image_recognition import Box, locate_element
 from logger import logger
 
 CAPTURE_HOTKEY = "F10"
@@ -111,6 +110,9 @@ class _WizardDialog(QDialog):
     # Порядок елементів, що знімаються. "stop" навмисно йде відразу за
     # "searching" без нового знімка — обидва видно на тому самому кадрі.
     STEPS = ["search_btn", "searching", "stop"]
+
+    # Що перевіряє «Перевірити зараз» на кроці 5
+    CHECK_ELEMENTS = list(STEPS)
 
     CAPTURE_PROMPTS = {
         "search_btn": "Перемкнись у Dota, відкрий головне меню і натисни {key}.",
@@ -520,7 +522,9 @@ class _WizardDialog(QDialog):
 
     def _run_check(self):
         """
-        Свіжий знімок і перевірка кожного елемента так само, як робитиме бот.
+        Свіжий знімок і перевірка кожного елемента так само, як робитиме бот:
+        через той самий locate_element, а не через власну копію логіки з
+        власними порогами.
 
         Майстер не заявляє про успіх, доки не переконається на живому екрані —
         інакше про невдале калібрування дізнаються лише тоді, коли бот
@@ -532,20 +536,14 @@ class _WizardDialog(QDialog):
 
         window = self.window
         lines = ["Перевірка на свіжому знімку:"]
-        for name in self.STEPS:
-            if not self.store.has(name):
+        for name in self.CHECK_ELEMENTS:
+            # "accept" шукається за кольором навіть без шаблона, тому його
+            # перевіряємо завжди; решта без калібрування перевірці не підлягає
+            if name != "accept" and not self.store.has(name):
                 lines.append(f"  • {name}: не відкалібровано")
                 continue
 
-            left, top, width, height = self.store.search_region(name, window)
-            crop = frame.crop((
-                left - window.left, top - window.top,
-                left - window.left + width, top - window.top + height,
-            ))
-            found = find_template(
-                self.store.template_path(name), crop,
-                confidence=CONFIDENCE.get(name), offset=(left, top)
-            )
+            found = locate_element(self.store, name, window, frame)
             lines.append(f"  • {name}: {'знайдено' if found else 'НЕ знайдено'}")
 
         self._set_status("\n".join(lines))

@@ -10,9 +10,8 @@ from typing import Optional, Dict
 
 from PIL import Image
 
-from config import APP_VERSION, CONFIDENCE, ACCEPT_COLOR_FALLBACK
-from calibration import SCALED_CONFIDENCE
-from image_recognition import find_template, find_green_button
+from config import APP_VERSION
+from image_recognition import locate_element
 from logger import logger
 
 def _screens() -> dict:
@@ -43,36 +42,7 @@ def detect_elements(window, frame, calibration) -> Dict[str, Optional[bool]]:
             result[name] = None
             continue
 
-        # Перевірити за шаблоном, якщо элемент має джерело
-        if calibration.has(name):
-            region = calibration.search_region(name, window)
-            if region:
-                crop = frame.crop((
-                    region[0] - window.left, region[1] - window.top,
-                    region[0] - window.left + region[2],
-                    region[1] - window.top + region[3],
-                ))
-                element = calibration.element(name)
-                confidence = (
-                    SCALED_CONFIDENCE if element.source == "scaled"
-                    else CONFIDENCE.get(name, 0.8)
-                )
-                box = find_template(
-                    calibration.template_path(name), crop,
-                    confidence=confidence, offset=region[:2]
-                )
-                if box:
-                    result[name] = True
-                    continue
-
-        # Для "accept" спробувати пошук за кольором
-        if name == "accept" and ACCEPT_COLOR_FALLBACK:
-            found = find_green_button(frame, offset=(window.left, window.top))
-            result[name] = found is not None
-            continue
-
-        # Елемент не знайдений
-        result[name] = False
+        result[name] = locate_element(calibration, name, window, frame) is not None
 
     return result
 

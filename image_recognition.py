@@ -9,7 +9,8 @@ import pyautogui as pag
 from PIL import Image
 
 from logger import logger
-from config import CLICK_COOLDOWN
+from calibration import SCALED_CONFIDENCE
+from config import CLICK_COOLDOWN, CONFIDENCE, ACCEPT_COLOR_FALLBACK
 
 # Лок для безпечних кліків з різних потоків
 _gui_lock = threading.Lock()
@@ -239,6 +240,52 @@ def find_accept_by_colour(window: Any, frame: Any) -> Optional[Box]:
 
     box = find_green_button(crop, offset=(region.left, region.top))
     return box if is_inside_accept_region(window, box) else None
+
+def locate_element(calibration: Any, name: str, window: Any, frame: Any) -> Optional[Box]:
+    """
+    Знайти відкалібрований елемент інтерфейсу у знятому кадрі вікна.
+
+    Єдина реалізація для всіх, хто питає «де зараз цей елемент»: цикл бота,
+    діагностичний пакет і «Перевірити зараз» у майстрі. Три копії цих
+    дванадцяти рядків уже встигли розійтися — майстер шукав з іншим
+    порогом, ніж бот, і рапортував «НЕ знайдено» те, що бот знаходить.
+
+    Живе тут, а не в calibration.py: цей модуль уже володіє OpenCV, а
+    сховище калібрування навмисно лишається без комп'ютерного зору.
+
+    Args:
+        calibration: сховище шаблонів (Calibration)
+        name: ім'я елемента з calibration.ELEMENTS
+        window: WindowInfo вікна Dota
+        frame: знятий кадр цього вікна
+
+    Returns:
+        Box в абсолютних координатах екрана або None
+    """
+    if calibration.has(name):
+        region = calibration.search_region(name, window)
+        if region:
+            crop = frame.crop((
+                region[0] - window.left, region[1] - window.top,
+                region[0] - window.left + region[2],
+                region[1] - window.top + region[3],
+            ))
+            element = calibration.element(name)
+            confidence = (
+                SCALED_CONFIDENCE if element.source == "scaled"
+                else CONFIDENCE.get(name, 0.8)
+            )
+            box = find_template(calibration.template_path(name), crop,
+                                confidence=confidence, offset=region[:2])
+            if box:
+                return box
+
+    # "Прийняти" знаходиться за кольором навіть без калібрування — показати
+    # цей попап на вимогу неможливо, тому шаблона може ще не бути
+    if name == "accept" and ACCEPT_COLOR_FALLBACK:
+        return find_accept_by_colour(window, frame)
+
+    return None
 
 def click_center(box: Optional[Any], duration: float = 0.05) -> bool:
     """

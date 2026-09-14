@@ -14,9 +14,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import pytest
 from PIL import Image
 
+import calibration as cal
 import calibration_wizard_dialog as wiz
+import image_recognition as ir
 import mock_dota
-from dota_window import WindowInfo
+from dota_window import WindowInfo, to_relative
 from image_recognition import Box
 
 
@@ -255,3 +257,47 @@ def test_multiple_candidates_lets_user_pick(tmp_path, monkeypatch, make_dialog):
     element = dialog.store.element("search_btn")
     assert element is not None
     assert element.rect.x == pytest.approx(x / 1920, abs=0.001)
+
+
+# --- Крок 5: перевірка робить рівно те, що робитиме бот ------------------------
+
+def _rescaled_store(tmp_path, small, big):
+    """
+    Калібрування, зняте на `small` і перераховане під `big`.
+
+    1920x1080 → 1366x768 — саме той випадок, заради якого існує
+    SCALED_CONFIDENCE: перерахований LANCZOS шаблон збігається на 0.65,
+    але вже не збігається на звичайному для search_btn порозі 0.70.
+    """
+    frame, rects = mock_dota.render_menu(small.width, small.height)
+    store = cal.Calibration.load(tmp_path / "calibration")
+    store.window_size = (small.width, small.height)
+    x, y, w, h = rects["search_btn"]
+    store.add("search_btn", frame.crop((x, y, x + w, y + h)),
+              to_relative(small, (x, y, w, h)), "manual")
+    store.save()
+    store.scale_to(big)
+
+    target, _ = mock_dota.render_menu(big.width, big.height)
+    return store, target
+
+
+def test_check_uses_the_same_confidence_as_the_bot(tmp_path, monkeypatch, make_dialog):
+    """
+    Крок 5 існує, щоб не заявляти про успіх без перевірки того, що
+    робитиме бот. Перевірка з іншими порогами зводить свою мету нанівець:
+    для елемента з source == "scaled" бот шукає з SCALED_CONFIDENCE, а
+    «Перевірити зараз» рапортувало «НЕ знайдено» те, що бот знаходить.
+    """
+    big = WindowInfo(0, 0, 1366, 768, "Dota 2")
+    store, target = _rescaled_store(tmp_path, WindowInfo(0, 0, 1920, 1080, "Dota 2"), big)
+    monkeypatch.setattr(wiz.dota_window, "find_window", lambda: big)
+    monkeypatch.setattr(wiz.dota_window, "capture", lambda w: target)
+    monkeypatch.setattr(wiz.QDialog, "exec", lambda self: 0)
+
+    dialog = make_dialog(store)
+    dialog._run_check()
+
+    # Те саме, що знаходить бот, майстер має показати знайденим
+    assert "search_btn: знайдено" in dialog.status.text()
+    assert ir.locate_element(store, "search_btn", big, target) is not None

@@ -6,14 +6,12 @@ from pathlib import Path
 
 from logger import logger
 import dota_window
-from calibration import Calibration, SCALED_CONFIDENCE
+from calibration import Calibration
 from config import (
-    CONFIDENCE, SCAN_INTERVAL, MESSAGE_COOLDOWN,
-    CALIBRATION_DIR, NO_GAME_POLL_INTERVAL, ACCEPT_COLOR_FALLBACK
+    SCAN_INTERVAL, MESSAGE_COOLDOWN, CALIBRATION_DIR, NO_GAME_POLL_INTERVAL
 )
 from image_recognition import (
-    find_template, find_accept_by_colour, is_inside_accept_region,
-    click_center, double_click_center
+    locate_element, is_inside_accept_region, click_center, double_click_center
 )
 from stats_tracker import Statistics
 from report_exporter import ReportExporter
@@ -69,30 +67,9 @@ class DotaHelper:
         Знайти елемент у вже знятому кадрі вікна.
 
         Для "accept" працює пошук за кольором навіть без калібрування.
+        Сама логіка — спільна з діагностикою та майстром.
         """
-        if self.calibration.has(name):
-            region = self.calibration.search_region(name, window)
-            crop = frame.crop((
-                region[0] - window.left, region[1] - window.top,
-                region[0] - window.left + region[2],
-                region[1] - window.top + region[3],
-            ))
-            element = self.calibration.element(name)
-            confidence = (
-                SCALED_CONFIDENCE if element.source == "scaled"
-                else CONFIDENCE.get(name, 0.8)
-            )
-            box = find_template(
-                self.calibration.template_path(name), crop,
-                confidence=confidence, offset=region[:2]
-            )
-            if box:
-                return box
-
-        if name == "accept" and ACCEPT_COLOR_FALLBACK:
-            return find_accept_by_colour(window, frame)
-
-        return None
+        return locate_element(self.calibration, name, window, frame)
 
     def tick(self):
         """Одна ітерація циклу. Повертає паузу до наступної."""

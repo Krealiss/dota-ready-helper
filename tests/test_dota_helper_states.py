@@ -152,6 +152,9 @@ def test_scaled_element_is_searched_with_lower_confidence(helper, monkeypatch):
     """
     Ruling 8: елемент з source == "scaled" (перерахований під інший розмір
     вікна) шукається з cal.SCALED_CONFIDENCE замість CONFIDENCE.get(name).
+
+    Поріг вибирає locate_element в image_recognition — єдина реалізація на
+    бота, діагностику й майстер, — тому підміняється find_template саме там.
     """
     window = WindowInfo(0, 0, 1920, 1080, "Dota 2")
     frame, rects = mock_dota.render_menu()
@@ -170,7 +173,7 @@ def test_scaled_element_is_searched_with_lower_confidence(helper, monkeypatch):
         captured["confidence"] = confidence
         return None
 
-    monkeypatch.setattr(dh, "find_template", fake_find_template)
+    monkeypatch.setattr(ir, "find_template", fake_find_template)
 
     helper.locate("search_btn", window, frame)
 
