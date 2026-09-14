@@ -131,27 +131,27 @@ class TelegramBot:
         Побудувати меню залежно від стану.
 
         Args:
-            state: 'idle', 'searching', або 'ready'
+            state: 'no_game', 'idle', 'searching', або 'ready'
         """
         kb = types.InlineKeyboardMarkup()
 
+        if state == "no_game":
+            return kb
         if state == "searching":
-            kb.add(types.InlineKeyboardButton(
-                "⏹ Зупинити пошук",
-                callback_data="stop_search"
-            ))
+            kb.add(types.InlineKeyboardButton("⏹ Зупинити пошук",
+                                              callback_data="stop_search"))
         else:
-            kb.add(types.InlineKeyboardButton(
-                "🔁 Запустити пошук",
-                callback_data="start_search"
-            ))
-
+            kb.add(types.InlineKeyboardButton("🔁 Запустити пошук",
+                                              callback_data="start_search"))
         return kb
 
     def _menu_text(self, state: str) -> str:
         """Текст меню залежно від стану."""
+        if state == "no_game":
+            return "🎮 Dota 2 не запущена.\nЗапусти гру — меню з'явиться саме."
         if state == "searching":
-            return "🔎 Пошук гри активний.\nБот автоматично натисне «Прийняти» при знаходженні матчу."
+            return ("🔎 Пошук гри активний.\n"
+                    "Бот автоматично натисне «Прийняти» при знаходженні матчу.")
         if state == "ready":
             return "✅ Матч знайдено!\nНатискаю «Прийняти»..."
         return "⏹ Пошук не активний.\nМожеш запустити пошук гри."

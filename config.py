@@ -2,7 +2,6 @@
 """Конфігурація Dota Ready Helper."""
 import os
 from pathlib import Path
-from typing import Optional
 from dotenv import load_dotenv
 
 # Завантажити змінні з .env
@@ -41,22 +40,17 @@ def _env_int(name: str, default: int) -> int:
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
-# Шляхи до зображень
-IMG_SEARCHING = ASSETS_DIR / "is_searching_game.png"
-IMG_SEARCH_BTN = ASSETS_DIR / "search_game.png"
-IMG_ACCEPT = ASSETS_DIR / "prinyat.png"
-IMG_STOP = ASSETS_DIR / "stop.png"
+# Імена готових PNG тут навмисно не дублюються: вони потрібні лише майстру
+# як підказка для автопошуку, і єдине їх місце — calibration_wizard.SHIPPED.
 
-# Усі варіанти кнопки "Прийняти" (prinyat.png, prinyat_allpick.png, ...).
-# Достатньо покласти новий вирізаний скриншот кнопки у assets/ з префіксом prinyat.
-IMG_ACCEPT_VARIANTS = sorted(ASSETS_DIR.glob("prinyat*.png"))
-
-# Параметри розпізнавання
+# Параметри розпізнавання. Ключ відповідає імені елемента калібрування
+# (calibration.ELEMENTS); "stop_btn" перейменовано на "stop", але змінна
+# оточення лишається CONFIDENCE_STOP_BTN заради сумісності .env.
 CONFIDENCE = {
     "accept": _env_float("CONFIDENCE_ACCEPT", 0.80),
     "searching": _env_float("CONFIDENCE_SEARCHING", 0.70),
     "search_btn": _env_float("CONFIDENCE_SEARCH_BTN", 0.70),
-    "stop_btn": _env_float("CONFIDENCE_STOP_BTN", 0.75),
+    "stop": _env_float("CONFIDENCE_STOP_BTN", 0.75),
 }
 
 # Таймінги
@@ -64,13 +58,16 @@ SCAN_INTERVAL = _env_float("SCAN_INTERVAL", 0.30)
 CLICK_COOLDOWN = _env_float("CLICK_COOLDOWN", 1.00)
 MESSAGE_COOLDOWN = _env_float("MESSAGE_COOLDOWN", 5.00)
 
-# Регіон пошуку (None = весь екран)
-SEARCH_REGION: Optional[tuple] = None
+# Калібрування
+CALIBRATION_DIR = BASE_DIR / "calibration"
 
-# Регіон пошуку кнопки "Прийняти" (центр екрана).
-# Вікно "Ваша гра готова" з деталями матчу вище за старе, тому регіон більший.
-ACCEPT_REGION_WIDTH = _env_int("ACCEPT_REGION_WIDTH", 1000)
-ACCEPT_REGION_HEIGHT = _env_int("ACCEPT_REGION_HEIGHT", 600)
+# Куди бот складає кадри з вікном прийняття для корпусу реальних знімків.
+# Окрема константа, а не шлях від __file__: інакше тести пишуть у справжню
+# теку проєкту і підкладають синтетичний макет замість кадру користувача.
+CORPUS_DIR = BASE_DIR / "diagnostics" / "corpus"
+
+# Пауза між перевірками, коли Dota не запущена
+NO_GAME_POLL_INTERVAL = _env_float("NO_GAME_POLL_INTERVAL", 2.0)
 
 # Резервний пошук кнопки за кольором, якщо жоден шаблон не збігся
 ACCEPT_COLOR_FALLBACK = os.getenv("ACCEPT_COLOR_FALLBACK", "1").strip().lower() in (
@@ -82,23 +79,21 @@ def credentials_present() -> bool:
     return bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)
 
 def validate_config() -> bool:
-    """Перевірити, чи всі необхідні налаштування присутні."""
+    """
+    Перевірити, чи всі необхідні налаштування присутні.
+
+    Готові PNG у assets/ тут не перевіряються: після переходу на
+    калібрування вони лише підказка всередині майстра, а
+    calibration_wizard.shipped_templates() і так спокійно пропускає
+    відсутні файли. Вимагати їх для старту означало б не запустити
+    програму через відсутню підказку — і зламати збірку .exe без assets/
+    ще до коду, здатного пояснити причину.
+    """
     if not TELEGRAM_BOT_TOKEN:
         print("❌ TELEGRAM_BOT_TOKEN не встановлено у .env")
         return False
     if not TELEGRAM_CHAT_ID:
         print("❌ TELEGRAM_CHAT_ID не встановлено у .env")
         return False
-
-    # Перевірка наявності зображень
-    for img_name, img_path in [
-        ("is_searching_game.png", IMG_SEARCHING),
-        ("search_game.png", IMG_SEARCH_BTN),
-        ("prinyat.png", IMG_ACCEPT),
-        ("stop.png", IMG_STOP),
-    ]:
-        if not img_path.exists():
-            print(f"❌ Зображення не знайдено: {img_path}")
-            return False
 
     return True

@@ -22,7 +22,7 @@
 - ⌨️ Hotkeys for quick control
 - 📊 Comprehensive event logging
 - 🔒 Secure token storage in `.env`
-- 🎯 Optimized search (grayscale, central region)
+- 🎯 Optimized search (grayscale, window-anchored regions)
 - 📈 Match statistics tracking
 
 ### Installation
@@ -61,6 +61,49 @@ python main.py --setup
 
 Without PyQt6 installed the same wizard runs in the console.
 
+### Calibration
+
+Right after the Telegram setup, a calibration wizard opens and walks you
+through capturing the search button, the "searching" indicator and the stop
+button from your own Dota client — so recognition works no matter your
+interface language, UI scale, or color theme. It appears automatically the
+first time no calibration exists yet.
+
+If your Dota window resolution changes later, the saved calibration is
+rescaled automatically in the background — you are not interrupted for it.
+
+Skipping the wizard (or closing it) is a supported choice: match accepting
+keeps working either way, because the Accept button is found by its color,
+not by a saved template. The only thing you lose by skipping is remote
+start/stop of the game search from Telegram.
+
+To reopen the wizard at any time:
+
+```bash
+python main.py --calibrate
+```
+
+### Diagnostics
+
+If recognition fails on your machine and you'd like to report it, you can
+collect a bundle with your setup information, calibration files, and a
+screenshot:
+
+```bash
+python main.py --diagnose
+```
+
+The bundle contains: system info, screen layout, Dota window rectangle,
+calibration sources, and a screenshot of your game. The Telegram bot token
+is never included. You can inspect the files before sending it to an issue.
+
+### Testing Matrix
+
+Before release, recognition is verified on real Dota clients across different
+configurations (resolution, language, UI scale, multi-monitor setup). See
+[`docs/testing-matrix.md`](docs/testing-matrix.md) for the full checklist and
+instructions on how to contribute screenshots to the test corpus.
+
 ### Controls
 
 #### Telegram Commands
@@ -80,29 +123,24 @@ All settings can be adjusted in `.env`:
 - `CONFIDENCE_*` — recognition confidence thresholds (0.0-1.0)
 - `CLICK_COOLDOWN` — pause after click (seconds)
 - `MESSAGE_COOLDOWN` — minimum time between Telegram messages (seconds)
-- `ACCEPT_REGION_WIDTH` / `ACCEPT_REGION_HEIGHT` — search area around screen center
+- `NO_GAME_POLL_INTERVAL` — pause between checks while Dota is not running (seconds)
 - `ACCEPT_COLOR_FALLBACK` — detect the green Accept button by color (`1`/`0`)
 
-### Accept Button Variants
+### Accept Button Detection
 
-Dota 2 shows several versions of the ready popup (plain button, or the full
-"Your game is ready / ALL PICK" panel with match quality details). The helper
-handles them in two ways:
+The "Accept" button needs no template to begin with: it is located by its
+color and shape, which is why it works out of the box in any client language
+or UI theme, on any version of the ready popup. The first time the bot
+actually catches a match, it crops that exact button out of the frame and
+saves it as your own template — every match after that is matched exactly
+instead of re-detected by color.
 
-1. **Templates** — every `assets/prinyat*.png` file is tried. To add a variant,
-   crop just the button from a screenshot and save it as e.g.
-   `assets/prinyat_allpick.png`.
-2. **Color fallback** — if no template matches, the green button is located by
-   its color and shape inside the center region. This works without any template.
-
-To check what the bot currently sees, open the ready popup and run:
-
-```bash
-python image_recognition.py
-```
-
-It prints the result of every detection method and saves an annotated screenshot
-to `logs/accept_debug.png`.
+To check what the bot currently sees, reopen the calibration wizard with
+`python main.py --calibrate`, go through (or skip) the capture steps to the
+summary screen, and press "Check now" ("Перевірити зараз"). It takes a fresh
+capture of the live Dota window and reports which elements were found —
+"Accept" included, whether or not it has ever been caught, because it is
+searched for by color and needs no template.
 
 ### Project Structure
 
@@ -118,12 +156,15 @@ dota-ready-helper/
 ├── error_handler.py     # Error handling
 ├── report_exporter.py   # Report export (CSV/JSON/HTML/TXT)
 ├── setup_dialog.py      # First-run setup wizard (writes .env)
+├── calibration.py       # Calibration storage and auto-detection logic
+├── calibration_wizard.py        # Pure detection helpers (no Qt)
+├── calibration_wizard_dialog.py # Calibration wizard UI (PyQt6)
 ├── .env.example         # Environment template
 ├── requirements.txt     # Dependencies
 ├── requirements-dev.txt # Dependencies for running tests
 ├── tests/               # Test suite
 └── assets/              # Reference images
-    ├── prinyat.png      # Accept button (add prinyat_*.png for more variants)
+    ├── prinyat.png      # Accept button reference (a hint for the calibration wizard)
     ├── search_game.png
     ├── is_searching_game.png
     └── stop.png
@@ -180,7 +221,7 @@ This tool is for educational purposes. Use at your own risk. The authors are not
 - ⌨️ Гарячі клавіші для швидкого керування
 - 📊 Логування всіх подій
 - 🔒 Безпечне зберігання токенів у `.env`
-- 🎯 Оптимізований пошук (grayscale, центральний регіон)
+- 🎯 Оптимізований пошук (grayscale, регіони прив'язані до вікна)
 - 📈 Відстеження статистики матчів
 
 ### Встановлення
@@ -219,6 +260,48 @@ python main.py --setup
 
 Без встановленого PyQt6 той самий майстер працює у консолі.
 
+### Калібрування
+
+Одразу після налаштування Telegram відкривається майстер калібрування: він
+проведе через знімання кнопки пошуку, індикатора «йде пошук» і кнопки
+скасування з твого власного клієнта Dota — так розпізнавання працює
+незалежно від мови інтерфейсу, масштабу чи кольорової теми. Майстер
+з'являється автоматично, коли калібрування ще немає.
+
+Якщо потім зміниться розмір вікна Dota, збережене калібрування
+перераховується автоматично у фоні — це не переривує роботу програми.
+
+Пропустити майстер (або просто закрити його) — це підтримуваний варіант:
+приймання матчів працює в обох випадках, бо кнопка «Прийняти» шукається за
+кольором, а не за збереженим шаблоном. Пропуск вимикає лише дистанційний
+запуск і зупинку пошуку гри через Telegram.
+
+Щоб відкрити майстер знову в будь-який момент:
+
+```bash
+python main.py --calibrate
+```
+
+### Діагностика
+
+Якщо розпізнавання не працює на твій машині й ти хочеш розповісти про це,
+можеш зібрати архів з інформацією про налаштування, калібруванням і знімком:
+
+```bash
+python main.py --diagnose
+```
+
+Архів містить: інформацію про систему, макет екранів, прямокутник вікна Dota,
+джерела калібрування й знімок гри. Токен Telegram бота в архів не потрапляє.
+Ти можеш перевірити файли перед відправкою в issue.
+
+### Ручна матриця перевірки
+
+Перед релізом розпізнавання перевіряється на справжніх клієнтах Dota у
+різних конфігураціях (роздільна здатність, мова, масштаб UI, робота на
+другому моніторі). Див. [`docs/testing-matrix.md`](docs/testing-matrix.md) для
+повного чек-листа й інструкцій щодо додавання знімків до тестового корпусу.
+
 ### Керування
 
 #### Команди Telegram
@@ -238,29 +321,24 @@ python main.py --setup
 - `CONFIDENCE_*` — пороги впевненості розпізнавання (0.0-1.0)
 - `CLICK_COOLDOWN` — пауза після кліку (секунди)
 - `MESSAGE_COOLDOWN` — мінімальний час між Telegram повідомленнями (секунди)
-- `ACCEPT_REGION_WIDTH` / `ACCEPT_REGION_HEIGHT` — область пошуку навколо центра екрана
+- `NO_GAME_POLL_INTERVAL` — пауза між перевірками, коли Dota не запущена (секунди)
 - `ACCEPT_COLOR_FALLBACK` — пошук зеленої кнопки за кольором (`1`/`0`)
 
-### Варіанти кнопки "Прийняти"
+### Розпізнавання кнопки "Прийняти"
 
-Dota 2 показує кілька версій вікна прийняття: просту кнопку або повну панель
-«Ваша гра готова / ALL PICK» з деталями якості матчу. Бот обробляє їх двома
-способами:
+Кнопці «Прийняти» шаблон спочатку не потрібен: вона шукається за кольором і
+формою, тому працює одразу в будь-якій мові клієнта чи темі оформлення, на
+будь-якій версії вікна прийняття. Коли бот вперше по-справжньому ловить матч,
+він вирізає саме цю кнопку з кадру і зберігає як твій власний шаблон — усі
+наступні матчі відтоді розпізнаються точним збігом, а не повторним пошуком за
+кольором.
 
-1. **Шаблони** — перебираються всі файли `assets/prinyat*.png`. Щоб додати новий
-   варіант, виріжте зі скриншота саму кнопку та збережіть, наприклад, як
-   `assets/prinyat_allpick.png`.
-2. **Пошук за кольором** — якщо жоден шаблон не збігся, зелена кнопка шукається
-   за кольором і формою в центральній області екрана. Працює без шаблону взагалі.
-
-Щоб перевірити, що саме бачить бот, відкрийте вікно прийняття та запустіть:
-
-```bash
-python image_recognition.py
-```
-
-Команда виведе результат кожного способу пошуку та збереже скриншот з розміткою
-у `logs/accept_debug.png`.
+Щоб перевірити, що саме бачить бот, відкрий майстер калібрування командою
+`python main.py --calibrate`, пройди (або пропусти) кроки знімання до
+зведення і натисни «Перевірити зараз». Він зробить свіжий знімок живого вікна
+Dota і покаже, які елементи знайдено — включно з «Прийняти», незалежно від
+того, чи була вона хоч раз спіймана: ця кнопка шукається за кольором і
+шаблона не потребує.
 
 ### Збірка виконуваного файлу
 
