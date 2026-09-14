@@ -33,6 +33,24 @@ BTN_MIN_FILL = 0.75          # суцільний прямокутник, а н�
 BTN_MIN_TEXT_RATIO = 0.01    # білий напис усередині кнопки
 BTN_MAX_TEXT_RATIO = 0.45
 
+# Область вікна Dota, у якій узагалі може опинитися кнопка "Прийняти",
+# у частках вікна. Кнопка "Почати пошук" — теж суцільний зелений
+# прямокутник з білим написом, і детектор кольору їх не розрізняє: єдина
+# різниця між ними — місце. Вікно "Ваша гра готова" завжди по центру
+# (макет mock_dota.render_ready_popup малює його на 0.33-0.67 ширини і
+# 0.22-0.74 висоти), а кнопка пошуку гри — унизу праворуч, приблизно на
+# (0.74 W, 0.82 H).
+#
+# Звідси межі: по горизонталі 0.20-0.80 лишає попапу запас 0.13 ширини
+# вікна з кожного боку (справжній попап може бути ширшим за макет), по
+# вертикалі нижня межа 0.78 стоїть рівно посередині між низом попапа
+# (0.74) і верхом кнопки пошуку (0.82), а верхня 0.15 дає попапу запас
+# 0.07 зверху.
+ACCEPT_REGION_LEFT = 0.20
+ACCEPT_REGION_TOP = 0.15
+ACCEPT_REGION_RIGHT = 0.80
+ACCEPT_REGION_BOTTOM = 0.78
+
 def validate_image(path: Path) -> bool:
     """Перевірити, чи файл є валідним PNG."""
     try:
@@ -171,6 +189,56 @@ def _detect_green_button(cv2, np, image, offset_x, offset_y, debug_path) -> Opti
         cv2.imwrite(str(debug_path), annotated)
 
     return best
+
+def accept_region(window: Any) -> Box:
+    """
+    Центральна область вікна, де шукається кнопка "Прийняти".
+
+    Args:
+        window: WindowInfo вікна Dota
+
+    Returns:
+        Box в абсолютних координатах екрана
+    """
+    left = window.left + round(window.width * ACCEPT_REGION_LEFT)
+    top = window.top + round(window.height * ACCEPT_REGION_TOP)
+    right = window.left + round(window.width * ACCEPT_REGION_RIGHT)
+    bottom = window.top + round(window.height * ACCEPT_REGION_BOTTOM)
+    return Box(left, top, right - left, bottom - top)
+
+def is_inside_accept_region(window: Any, box: Optional[Any]) -> bool:
+    """Чи лежить знайдений прямокутник цілком у центральній області вікна."""
+    if not box:
+        return False
+
+    region = accept_region(window)
+    return (box.left >= region.left
+            and box.top >= region.top
+            and box.left + box.width <= region.left + region.width
+            and box.top + box.height <= region.top + region.height)
+
+def find_accept_by_colour(window: Any, frame: Any) -> Optional[Box]:
+    """
+    Знайти зелену кнопку "Прийняти" у центрі вікна.
+
+    Пошук по всьому кадру знаходив кнопку "Почати пошук" — такий самий
+    зелений прямокутник з білим написом — і натискав її, ставлячи гравця
+    в чергу на матч, якого він не просив.
+
+    Args:
+        window: WindowInfo вікна Dota
+        frame: знятий кадр цього вікна
+
+    Returns:
+        Box в абсолютних координатах екрана або None
+    """
+    region = accept_region(window)
+    local_x, local_y = region.left - window.left, region.top - window.top
+    crop = frame.crop((local_x, local_y,
+                       local_x + region.width, local_y + region.height))
+
+    box = find_green_button(crop, offset=(region.left, region.top))
+    return box if is_inside_accept_region(window, box) else None
 
 def click_center(box: Optional[Any], duration: float = 0.05) -> bool:
     """

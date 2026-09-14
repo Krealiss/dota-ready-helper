@@ -12,7 +12,8 @@ from config import (
     CALIBRATION_DIR, NO_GAME_POLL_INTERVAL, ACCEPT_COLOR_FALLBACK
 )
 from image_recognition import (
-    find_template, find_green_button, click_center, double_click_center
+    find_template, find_accept_by_colour, is_inside_accept_region,
+    click_center, double_click_center
 )
 from stats_tracker import Statistics
 from report_exporter import ReportExporter
@@ -89,7 +90,7 @@ class DotaHelper:
                 return box
 
         if name == "accept" and ACCEPT_COLOR_FALLBACK:
-            return find_green_button(frame, offset=(window.left, window.top))
+            return find_accept_by_colour(window, frame)
 
         return None
 
@@ -211,8 +212,20 @@ class DotaHelper:
 
         Показати цей попап на вимогу неможливо, тому шаблон знімається
         під час реальної гри й далі працює точний збіг.
+
+        Захист у глибину: записуємо лише те, що лежить у центральній
+        області вікна. Шаблон пишеться на диск один раз і назавжди —
+        помилка детектора тут отруїла б калібрування без шансу
+        самовиправитися.
         """
         if self.calibration.has("accept"):
+            return
+
+        if not is_inside_accept_region(window, box):
+            logger.warning(
+                "Кнопку 'Прийняти' знайдено поза центром вікна — "
+                "шаблон не зберігаю"
+            )
             return
 
         with ErrorHandler("Самокалібрування 'Прийняти'", silent=True):
