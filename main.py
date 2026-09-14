@@ -5,6 +5,7 @@ Dota Ready Helper
 """
 import importlib
 import sys
+from pathlib import Path
 import pyautogui as pag
 import keyboard
 
@@ -92,6 +93,22 @@ def ensure_calibrated(force_setup: bool = False) -> Calibration:
 
     return Calibration.load(config.CALIBRATION_DIR)
 
+def run_diagnostics() -> None:
+    """Зібрати діагностичний пакет і показати його користувачу."""
+    import diagnostics
+
+    window = dota_window.find_window()
+    frame = dota_window.capture(window) if dota_window.is_usable(window) else None
+    store = Calibration.load(config.CALIBRATION_DIR)
+
+    bundle = diagnostics.build_bundle(
+        Path(__file__).parent / "diagnostics", window, store, frame
+    )
+
+    print(f"\nДіагностичний архів: {bundle}")
+    print("У ньому є знімок гри — на ньому видно твій нік у Steam.")
+    print("Токен бота в архів не потрапляє. Перевір вміст перед відправкою.")
+
 def main():
     """Точка входу."""
     logger.info("=" * 50)
@@ -105,6 +122,11 @@ def main():
         sys.exit(1)
 
     logger.info("✅ Конфігурація валідна")
+
+    # Перевірка діагностичного прапорця
+    if "--diagnose" in sys.argv:
+        run_diagnostics()
+        return
 
     # Перевірка калібрування (--calibrate відкриває майстер примусово)
     calibration = ensure_calibrated(force_setup="--calibrate" in sys.argv)

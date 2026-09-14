@@ -83,6 +83,20 @@ To reopen the wizard at any time:
 python main.py --calibrate
 ```
 
+### Diagnostics
+
+If recognition fails on your machine and you'd like to report it, you can
+collect a bundle with your setup information, calibration files, and a
+screenshot:
+
+```bash
+python main.py --diagnose
+```
+
+The bundle contains: system info, screen layout, Dota window rectangle,
+calibration sources, and a screenshot of your game. The Telegram bot token
+is never included. You can inspect the files before sending it to an issue.
+
 ### Controls
 
 #### Telegram Commands
@@ -259,6 +273,19 @@ python main.py --setup
 ```bash
 python main.py --calibrate
 ```
+
+### Діагностика
+
+Якщо розпізнавання не працює на твій машині й ти хочеш розповісти про це,
+можеш зібрати архів з інформацією про налаштування, калібруванням і знімком:
+
+```bash
+python main.py --diagnose
+```
+
+Архів містить: інформацію про систему, макет екранів, прямокутник вікна Dota,
+джерела калібрування й знімок гри. Токен Telegram бота в архів не потрапляє.
+Ти можеш перевірити файли перед відправкою в issue.
 
 ### Керування
 
