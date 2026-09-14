@@ -495,3 +495,44 @@ def test_interface_warning_returns_after_the_suppression_window(helper, monkeypa
         helper.tick()
 
     assert any("інтерфейс" in m for m in helper.telegram_bot.messages)
+
+
+def test_accept_frame_is_saved_for_the_corpus(helper, monkeypatch, tmp_path):
+    """
+    Кадр з попапом неможливо зняти вручну — бот мусить зберегти його сам.
+
+    Саме цей файл потребує tests/test_corpus.py, і взяти його більше нізвідки.
+    """
+    window = WindowInfo(0, 0, 1920, 1080, "Dota 2")
+    frame, _ = mock_dota.render_ready_popup()
+    monkeypatch.setattr(dh, "__file__", str(tmp_path / "dota_helper.py"))
+    monkeypatch.setattr(dh.dota_window, "find_window", lambda: window)
+    monkeypatch.setattr(dh.dota_window, "capture", lambda w: frame)
+    monkeypatch.setattr(dh, "click_center", lambda box, **kw: True)
+
+    helper.tick()
+
+    from PIL import Image
+
+    saved = tmp_path / "diagnostics" / "corpus" / "1920x1080_accept.png"
+    assert saved.exists(), "кадр з вікном прийняття не збережено"
+    with Image.open(saved) as written:
+        assert written.size == frame.size, "збережено обрізок, а не весь кадр"
+
+
+def test_corpus_frame_is_saved_once_per_window_size(helper, monkeypatch, tmp_path):
+    """Один файл на конфігурацію, а не сотні знімків тієї самої."""
+    window = WindowInfo(0, 0, 1920, 1080, "Dota 2")
+    frame, _ = mock_dota.render_ready_popup()
+    menu, _ = mock_dota.render_menu()
+    frames = iter([frame, menu, menu, frame])
+    monkeypatch.setattr(dh, "__file__", str(tmp_path / "dota_helper.py"))
+    monkeypatch.setattr(dh.dota_window, "find_window", lambda: window)
+    monkeypatch.setattr(dh.dota_window, "capture", lambda w: next(frames))
+    monkeypatch.setattr(dh, "click_center", lambda box, **kw: True)
+
+    for _ in range(4):
+        helper.tick()
+
+    corpus = tmp_path / "diagnostics" / "corpus"
+    assert len(list(corpus.glob("*.png"))) == 1

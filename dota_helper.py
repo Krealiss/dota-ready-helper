@@ -334,6 +334,29 @@ class DotaHelper:
             )
             self.calibration.save()
 
+    def _save_corpus_frame(self, window, frame):
+        """
+        Зберегти кадр з вікном прийняття для корпусу реальних знімків.
+
+        Попап живе кілька секунд, і бот натискає кнопку майже одразу, тому
+        зняти його вручну неможливо — а це єдиний кадр, який потребує
+        tests/test_corpus.py. Кадр у нас уже в руках саме в потрібну мить,
+        лишається його не викинути.
+
+        Один файл на розмір вікна: корпусу потрібне покриття конфігурацій, а
+        не сотні знімків тієї самої. Зберігається після кліку, у теку, яка
+        не потрапляє в git — вирішує людина, що з нього публікувати.
+        """
+        with ErrorHandler("Збереження кадру для корпусу", silent=True):
+            target = (Path(__file__).parent / "diagnostics" / "corpus"
+                      / f"{window.width}x{window.height}_accept.png")
+            if target.exists():
+                return
+
+            target.parent.mkdir(parents=True, exist_ok=True)
+            frame.save(target)
+            logger.info(f"Кадр для корпусу збережено: {target.name}")
+
     def _leave_ready_when_popup_is_gone(self):
         """
         Вийти зі стану READY, коли попап «Прийняти» зник з екрана.
@@ -382,6 +405,7 @@ class DotaHelper:
 
             self.stats.match_accepted()
             self._learn_accept(window, frame, accept)
+            self._save_corpus_frame(window, frame)
             summary = self.stats.get_summary()
             self._debounced_message(
                 f"🎮 Гру прийнято!\n\n"
